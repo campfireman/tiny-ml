@@ -47,9 +47,9 @@
 #include "gesture_model.h"
 
 
-const float accelerationThreshold = 2.5; // threshold of significant in G's
+const float accelerationThreshold = 0; // threshold of significant in G's
 
-const int numSamples = 119;
+const int numSamples = 200;
 
 
 int samplesRead = numSamples;
@@ -94,6 +94,10 @@ void setup() {
   Serial.begin(9600);
 
   while (!Serial);
+
+  Serial.println("=== MODEL PARAMS ===");
+
+
 
 
   // initialize the IMU
@@ -155,7 +159,6 @@ void setup() {
 
 void loop() {
 
-  Serial.println("=== READY TO GO ===");
 
   float aX, aY, aZ;
 
@@ -175,7 +178,6 @@ void loop() {
 
       float aSum = fabs(aX) + fabs(aY) + fabs(aZ);
 
-      Serial.println(aSum);
 
       // check if it's above the threshold
 
@@ -213,11 +215,24 @@ void loop() {
 
       // input tensor
 
-      tflInputTensor->data.f[samplesRead * 6 + 0] = (aX + 4.0) / 8.0;
+      //tflInputTensor->data.f[samplesRead * 6 + 0] = (aX + 4.0) / 8.0;
 
-      tflInputTensor->data.f[samplesRead * 6 + 1] = (aY + 4.0) / 8.0;
+      //tflInputTensor->data.f[samplesRead * 6 + 1] = (aY + 4.0) / 8.0;
 
-      tflInputTensor->data.f[samplesRead * 6 + 2] = (aZ + 4.0) / 8.0;
+      //tflInputTensor->data.f[samplesRead * 6 + 2] = (aZ + 4.0) / 8.0;
+      
+
+      tflInputTensor->data.f[samplesRead * 3 + 0] = aX;
+
+      tflInputTensor->data.f[samplesRead * 3 + 1] = aY;
+
+      tflInputTensor->data.f[samplesRead * 3 + 2] = aZ;
+
+      //Serial.println("===");
+      // Serial.println((aX + 4.0) / 8.0);
+      // Serial.println((aY + 4.0) / 8.0);
+      // Serial.println((aZ + 4.0) / 8.0);
+      // Serial.println("===");
 
 
       samplesRead++;
