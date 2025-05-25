@@ -70,9 +70,6 @@ TfLiteTensor *tflInputTensor = nullptr;
 
 TfLiteTensor *tflOutputTensor = nullptr;
 
-float zeroPoint = 0.0;
-float scale = 0.0;
-
 // Create a static memory buffer for TFLM, the size may need to
 
 // be adjusted based on the model you are using
@@ -80,16 +77,6 @@ float scale = 0.0;
 constexpr int tensorArenaSize = 128 * 1024;
 
 byte tensorArena[tensorArenaSize] __attribute__((aligned(16)));
-
-inline int8_t quantize_int8(float x, float scale, int zero_point)
-{
-  int q = static_cast<int>(std::lround(x / scale) + zero_point);
-  if (q < -128)
-    q = -128;
-  if (q > 127)
-    q = 127;
-  return static_cast<int8_t>(q);
-}
 
 void setup()
 {
@@ -115,8 +102,11 @@ void setup()
   // print out the samples rates of the IMUs
 
   Serial.print("Accelerometer sample rate = ");
+
   Serial.print(IMU.accelerationSampleRate());
+
   Serial.println(" Hz");
+
   Serial.println();
 
   // get the TFL representation of the model byte array
@@ -125,7 +115,9 @@ void setup()
 
   if (tflModel->version() != TFLITE_SCHEMA_VERSION)
   {
+
     Serial.println("Model schema mismatch!");
+
     while (1)
       ;
   }
@@ -142,9 +134,8 @@ void setup()
   // Get pointers for the model's input and output tensors
 
   tflInputTensor = tflInterpreter->input(0);
+
   tflOutputTensor = tflInterpreter->output(0);
-  zeroPoint = tflInputTensor->params.zero_point;
-  scale = tflInputTensor->params.scale;
 }
 
 void loop()
@@ -152,68 +143,39 @@ void loop()
 
   float aX, aY, aZ;
 
-  while (samplesRead == numSamples)
+  memcpy(tflInputTensor->data.f, idle_raw, 600 * sizeof(float));
+
+  // Run inferencing
+  Serial.println("First 10 inputs:");
+  for (int i = 0; i < 10; i++)
   {
+    Serial.println(tflInputTensor->data.f[i], 6);
+  }
+  Serial.println("Last 10 inputs:");
+  for (int i = 589; i < 600; i++)
+  {
+    Serial.println(tflInputTensor->data.f[i], 6);
+  }
+  TfLiteStatus invokeStatus = tflInterpreter->Invoke();
 
-    if (IMU.accelerationAvailable())
-    {
-
-      // read the acceleration data
-      IMU.readAcceleration(aX, aY, aZ);
-      float aSum = fabs(aX) + fabs(aY) + fabs(aZ);
-
-      // check if it's above the threshold
-
-      if (aSum >= accelerationThreshold)
-      {
-        samplesRead = 0;
-        break;
-      }
-    }
+  if (invokeStatus != kTfLiteOk)
+  {
+    Serial.println("Invoke failed!");
+    while (1)
+      ;
+    return;
   }
 
-  while (samplesRead < numSamples)
+  // Loop through the output tensor values from the model
+
+  for (int i = 0; i < available_classes_num; i++)
   {
 
-    if (IMU.accelerationAvailable())
-    {
-
-      IMU.readAcceleration(aX, aY, aZ);
-
-      // tflInputTensor->data.f[samplesRead * 3 + 0] = aY * 10;
-      // tflInputTensor->data.f[samplesRead * 3 + 1] = aX * 10;
-      // tflInputTensor->data.f[samplesRead * 3 + 2] = aZ * 10;
-      tflInputTensor->data.int8[samplesRead * 3 + 0] = quantize_int8(aY * 10, scale, zeroPoint);
-      tflInputTensor->data.int8[samplesRead * 3 + 1] = quantize_int8(aX * 10, scale, zeroPoint);
-      tflInputTensor->data.int8[samplesRead * 3 + 2] = quantize_int8(aZ * 10, scale, zeroPoint);
-      samplesRead++;
-
-      if (samplesRead == numSamples)
-      {
-
-        // Run inferencing
-        TfLiteStatus invokeStatus = tflInterpreter->Invoke();
-
-        if (invokeStatus != kTfLiteOk)
-        {
-          Serial.println("Invoke failed!");
-          while (1)
-            ;
-          return;
-        }
-
-        // Loop through the output tensor values from the model
-
-        for (int i = 0; i < available_classes_num; i++)
-        {
-
-          Serial.print(available_classes[i]);
-          Serial.print(": ");
-          Serial.println(tflOutputTensor->data.int8[i]);
-        }
-
-        Serial.println();
-      }
-    }
+    Serial.print(available_classes[i]);
+    Serial.print(": ");
+    Serial.println(tflOutputTensor->data.f[i], 6);
   }
+
+  Serial.println();
+  delay(5000);
 }
