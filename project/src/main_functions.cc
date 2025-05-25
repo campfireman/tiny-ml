@@ -8,6 +8,8 @@
 #include "main_functions.h"
 #include "gesture_model.h"
 
+// #define DEBUG
+
 // Globals, used for compatibility with Arduino-style sketches.
 namespace
 {
@@ -82,19 +84,10 @@ void setup()
     }
 }
 
-inline int8_t quantize_int8(float x, float scale, int zero_point)
-{
-    int q = static_cast<int>(std::lround(x / scale) + zero_point);
-    if (q < -128)
-        q = -128;
-    if (q > 127)
-        q = 127;
-    return static_cast<int8_t>(q);
-}
-
 // The name of this function is important for Arduino compatibility.
 void loop()
 {
+#ifdef DEBUG
     MicroPrintf("Arena used: %d / %d bytes",
                 interpreter->arena_used_bytes(),
                 kTensorArenaSize);
@@ -113,7 +106,6 @@ void loop()
     auto *subgraph = model->subgraphs()->Get(0);
     auto *ops = subgraph->operators();
     auto *codes = model->operator_codes();
-    size_t num_tensors = subgraph->tensors()->size();
 
     for (int i = 0; i < ops->size(); ++i)
     {
@@ -123,31 +115,28 @@ void loop()
                     i,
                     EnumNameBuiltinOperator(static_cast<tflite::BuiltinOperator>(builtin)));
     }
+#endif
 
-    float input_scale = input->params.scale;
-    int input_zero_point = input->params.zero_point;
-    // float output_scale = output->params.scale;
-    // int output_zero_point = output->params.zero_point;
-    // Compute the number of floats your model expects:
-    // int input_len = input->bytes / sizeof(float); // 2400 bytes / 4 = 600 floats
-    int input_len = input->bytes; // 600 bytes / 1 = 600 int8
+    int input_len = input->bytes / sizeof(float); // 2400 bytes / 4 = 600 floats
 
     // Straight copy:
     for (int idx = 0; idx < input_len; ++idx)
     {
-        input->data.int8[idx] =
-            quantize_int8(features[idx], input_scale, input_zero_point);
+        input->data.f[idx] = features[idx];
     }
 
-    // (Optional) verify the first few elements match
+#ifdef DEBUG
     for (int i = 590; i < input_len; ++i)
     {
-        MicroPrintf("features[%d]=%f  input[%d]=%d", i, features[i], i, input->data.int8[i]);
+        MicroPrintf("features[%d]=%f  input[%d]=%f", i, features[i], i, input->data.f[i]);
     }
+#endif
     // Run inference, and report any error
     TfLiteStatus invoke_status = interpreter->Invoke();
 
-    // profiler.Log();
+#ifdef DEBUG
+    profiler.Log();
+#endif
 
     if (invoke_status != kTfLiteOk)
     {
@@ -158,6 +147,6 @@ void loop()
     for (int i = 0; i < available_classes_num; i++)
     {
 
-        MicroPrintf("%s: %d", available_classes[i], output->data.int8[i]);
+        MicroPrintf("%s: %f", available_classes[i], output->data.f[i]);
     }
 }
