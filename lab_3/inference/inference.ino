@@ -27,38 +27,32 @@
 
 */
 
-
 #include <Arduino_LSM9DS1.h>
-
 
 #include <TensorFlowLite.h>
 
 #include <tensorflow/lite/micro/all_ops_resolver.h>
 
-//#include <tensorflow/lite/micro/tflite_bridge/micro_error_reporter.h>
+// #include <tensorflow/lite/micro/tflite_bridge/micro_error_reporter.h>
 
 #include <tensorflow/lite/micro/micro_interpreter.h>
 
 #include <tensorflow/lite/schema/schema_generated.h>
 
-//#include <tensorflow/lite/version.h>
-
+// #include <tensorflow/lite/version.h>
 
 #include "gesture_model.h"
-
+#include "raw_data.h"
 
 const float accelerationThreshold = 0; // threshold of significant in G's
 
 const int numSamples = 200;
 
-
 int samplesRead = numSamples;
-
 
 // global variables used for TensorFlow Lite (Micro)
 
-//tflite::MicroErrorReporter tflErrorReporter;
-
+// tflite::MicroErrorReporter tflErrorReporter;
 
 // pull in all the TFLM ops, you can remove this line and
 
@@ -68,15 +62,13 @@ int samplesRead = numSamples;
 
 tflite::AllOpsResolver tflOpsResolver;
 
+const tflite::Model *tflModel = nullptr;
 
-const tflite::Model* tflModel = nullptr;
+tflite::MicroInterpreter *tflInterpreter = nullptr;
 
-tflite::MicroInterpreter* tflInterpreter = nullptr;
+TfLiteTensor *tflInputTensor = nullptr;
 
-TfLiteTensor* tflInputTensor = nullptr;
-
-TfLiteTensor* tflOutputTensor = nullptr;
-
+TfLiteTensor *tflOutputTensor = nullptr;
 
 // Create a static memory buffer for TFLM, the size may need to
 
@@ -86,30 +78,26 @@ constexpr int tensorArenaSize = 128 * 1024;
 
 byte tensorArena[tensorArenaSize] __attribute__((aligned(16)));
 
-
-
-
-void setup() {
+void setup()
+{
 
   Serial.begin(9600);
 
-  while (!Serial);
+  while (!Serial)
+    ;
 
   Serial.println("=== MODEL PARAMS ===");
 
-
-
-
   // initialize the IMU
 
-  if (!IMU.begin()) {
+  if (!IMU.begin())
+  {
 
     Serial.println("Failed to initialize IMU!");
 
-    while (1);
-
+    while (1)
+      ;
   }
-
 
   // print out the samples rates of the IMUs
 
@@ -119,160 +107,195 @@ void setup() {
 
   Serial.println(" Hz");
 
-
-
   Serial.println();
-
 
   // get the TFL representation of the model byte array
 
   tflModel = tflite::GetModel(gesture_model);
 
-  if (tflModel->version() != TFLITE_SCHEMA_VERSION) {
+  if (tflModel->version() != TFLITE_SCHEMA_VERSION)
+  {
 
     Serial.println("Model schema mismatch!");
 
-    while (1);
-
+    while (1)
+      ;
   }
-
 
   // Create an interpreter to run the model
 
-  //tflInterpreter = new tflite::MicroInterpreter(tflModel, tflOpsResolver, tensorArena, tensorArenaSize, &tflErrorReporter);
+  // tflInterpreter = new tflite::MicroInterpreter(tflModel, tflOpsResolver, tensorArena, tensorArenaSize, &tflErrorReporter);
   tflInterpreter = new tflite::MicroInterpreter(tflModel, tflOpsResolver, tensorArena, tensorArenaSize);
-
 
   // Allocate memory for the model's input and output tensors
 
   tflInterpreter->AllocateTensors();
-
 
   // Get pointers for the model's input and output tensors
 
   tflInputTensor = tflInterpreter->input(0);
 
   tflOutputTensor = tflInterpreter->output(0);
-
 }
 
-
-void loop() {
-
+void loop()
+{
 
   float aX, aY, aZ;
 
+  //   // for (int i = 0; i < 200; i++) {
+
+  //   //     tflInputTensor->data.f[i * 3 + 0] = features[i];
+
+  //   //     tflInputTensor->data.f[i * 3 + 1] = features[i + 1];
+
+  //   //     tflInputTensor->data.f[i * 3 + 2] = features[i + 2];
+  //   // }
+  //   for (int i = 0; i < 600; i++)
+  //   {
+
+  //     // tflInputTensor->data.f[i] = features[i];
+  //     tflInputTensor->data.f[i] = 0.0;
+  //   }
+
+  //   // Run inferencing
+  //   Serial.println("First 10 inputs:");
+  //   for (int i = 0; i < 10; i++)
+  //   {
+  //     Serial.println(tflInputTensor->data.f[i], 6);
+  //   }
+  //   TfLiteStatus invokeStatus = tflInterpreter->Invoke();
+
+  //   if (invokeStatus != kTfLiteOk)
+  //   {
+
+  //     Serial.println("Invoke failed!");
+
+  //     while (1)
+  //       ;
+
+  //     return;
+  //   }
+
+  //   // Loop through the output tensor values from the model
+
+  //   for (int i = 0; i < available_classes_num; i++)
+  //   {
+
+  //     Serial.print(available_classes[i]);
+
+  //     Serial.print(": ");
+
+  //     Serial.println(tflOutputTensor->data.f[i], 6);
+  //   }
+
+  //   Serial.println();
+
+  //   delay(5000);
+  // }
 
   // wait for significant motion
 
-  while (samplesRead == numSamples) {
+  while (samplesRead == numSamples)
+  {
 
-    if (IMU.accelerationAvailable()) {
+    if (IMU.accelerationAvailable())
+    {
 
       // read the acceleration data
 
       IMU.readAcceleration(aX, aY, aZ);
 
-
       // sum up the absolutes
 
       float aSum = fabs(aX) + fabs(aY) + fabs(aZ);
 
-
       // check if it's above the threshold
 
-      if (aSum >= accelerationThreshold) {
+      if (aSum >= accelerationThreshold)
+      {
 
         // reset the sample read count
 
         samplesRead = 0;
 
         break;
-
       }
-
     }
-
   }
-
 
   // check if the all the required samples have been read since
 
   // the last time the significant motion was detected
 
-  while (samplesRead < numSamples) {
+  while (samplesRead < numSamples)
+  {
 
     // check if new acceleration AND gyroscope data is available
 
-    if (IMU.accelerationAvailable()) {
+    if (IMU.accelerationAvailable())
+    {
 
       // read the acceleration and gyroscope data
 
       IMU.readAcceleration(aX, aY, aZ);
 
-
       // normalize the IMU data between 0 to 1 and store in the model's
 
       // input tensor
 
-      //tflInputTensor->data.f[samplesRead * 6 + 0] = (aX + 4.0) / 8.0;
+      // tflInputTensor->data.f[samplesRead * 6 + 0] = (aX + 4.0) / 8.0;
 
-      //tflInputTensor->data.f[samplesRead * 6 + 1] = (aY + 4.0) / 8.0;
+      // tflInputTensor->data.f[samplesRead * 6 + 1] = (aY + 4.0) / 8.0;
 
-      //tflInputTensor->data.f[samplesRead * 6 + 2] = (aZ + 4.0) / 8.0;
-      
+      // tflInputTensor->data.f[samplesRead * 6 + 2] = (aZ + 4.0) / 8.0;
 
-      tflInputTensor->data.f[samplesRead * 3 + 0] = aX;
+      tflInputTensor->data.f[samplesRead * 3 + 0] = aX * 10;
 
-      tflInputTensor->data.f[samplesRead * 3 + 1] = aY;
+      tflInputTensor->data.f[samplesRead * 3 + 1] = aY * 10;
 
-      tflInputTensor->data.f[samplesRead * 3 + 2] = aZ;
+      tflInputTensor->data.f[samplesRead * 3 + 2] = aZ * 10;
 
-      //Serial.println("===");
-      // Serial.println((aX + 4.0) / 8.0);
-      // Serial.println((aY + 4.0) / 8.0);
-      // Serial.println((aZ + 4.0) / 8.0);
       // Serial.println("===");
-
+      //  Serial.println((aX + 4.0) / 8.0);
+      //  Serial.println((aY + 4.0) / 8.0);
+      //  Serial.println((aZ + 4.0) / 8.0);
+      //  Serial.println("===");
 
       samplesRead++;
 
-
-      if (samplesRead == numSamples) {
+      if (samplesRead == numSamples)
+      {
 
         // Run inferencing
 
         TfLiteStatus invokeStatus = tflInterpreter->Invoke();
 
-        if (invokeStatus != kTfLiteOk) {
+        if (invokeStatus != kTfLiteOk)
+        {
 
           Serial.println("Invoke failed!");
 
-          while (1);
+          while (1)
+            ;
 
           return;
-
         }
-
 
         // Loop through the output tensor values from the model
 
-        for (int i = 0; i < available_classes_num; i++) {
+        for (int i = 0; i < available_classes_num; i++)
+        {
 
           Serial.print(available_classes[i]);
 
           Serial.print(": ");
 
           Serial.println(tflOutputTensor->data.f[i], 6);
-
         }
 
         Serial.println();
-
       }
-
     }
-
   }
-
 }
