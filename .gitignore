@@ -1,5 +1,6 @@
 # custom
 .pio
+edge_test
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
