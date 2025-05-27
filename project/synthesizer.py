@@ -1,22 +1,26 @@
-from TTS.api import TTS
+from torch.serialization import safe_globals
+from torch.serialization import add_safe_globals
+
+from TTS.tts.configs.xtts_config import XttsConfig
+from TTS.tts.models.xtts import XttsAudioConfig
+from TTS.config.shared_configs import BaseDatasetConfig
 from random import choice
+from TTS.api import TTS
+from TTS.tts.models.xtts import XttsAudioConfig, XttsArgs
 
-# 1. Load the multi-speaker model
-tts = TTS(
-    model_name="tts_models/en/vctk/vits",
-    progress_bar=False,
-    gpu=False
-)
+add_safe_globals([XttsConfig, XttsAudioConfig, BaseDatasetConfig, XttsArgs])
 
-# 2. List available speaker IDs
-print("Available speakers:", tts.speakers)
 
-# 3. Select one speaker (e.g. the first)
-speaker_id = choice(tts.speakers)
+with safe_globals([XttsConfig, XttsAudioConfig, BaseDatasetConfig, XttsArgs]):
+    tts = TTS(
+        model_name="tts_models/multilingual/multi-dataset/xtts_v2",
+        progress_bar=True,
+        gpu=False
+    )
 
-# 4. Synthesize to WAV, supplying the speaker
-tts.tts_to_file(
-    text="chillaxo",
-    speaker=speaker_id,
-    file_path=f"hello_world_{speaker_id}.wav"
-)
+    tts.tts_to_file(
+        text="chillaxo",
+        speaker="Ana Florence",
+        file_path=f"multi_test.wav",
+        language="de"
+    )
