@@ -1,10 +1,11 @@
 #include <Arduino.h>
 #include <driver/i2s.h>
 
-#define SAMPLE_BUFFER_SIZE 512
+#define SAMPLE_BUFFER_SIZE 1024
 #define SAMPLE_RATE 16000
 #define RECORD_SECONDS 1
 #define RECORD_SAMPLES (SAMPLE_RATE * RECORD_SECONDS)
+#define GAIN 10.0
 
 #define I2S_MIC_CHANNEL I2S_CHANNEL_FMT_ONLY_LEFT
 #define I2S_MIC_SERIAL_CLOCK GPIO_NUM_10
@@ -62,9 +63,7 @@ void writeWavHeader(uint32_t dataBytes)
 void setup()
 {
     Serial.begin(115200);
-    while (!Serial)
-    {
-    }
+    pinMode(LED_BUILTIN, OUTPUT);
     i2s_driver_install(I2S_NUM_0, &i2s_config, 0, nullptr);
     i2s_set_pin(I2S_NUM_0, &i2s_pins);
     Serial.println("Ready. Send 'r' to record.");
@@ -75,7 +74,9 @@ void loop()
     if (Serial.available() && Serial.read() == 'r')
     {
         size_t bytesIn = 0;
+        digitalWrite(LED_BUILTIN, HIGH);
         i2s_read(I2S_NUM_0, rawBuf, RECORD_SAMPLES * sizeof(int32_t), &bytesIn, portMAX_DELAY);
+        digitalWrite(LED_BUILTIN, LOW);
         int samples = bytesIn / sizeof(int32_t);
         uint32_t dataBytes = samples * sizeof(int16_t);
 
@@ -85,7 +86,8 @@ void loop()
         // send PCM16LE data
         for (int i = 0; i < samples; ++i)
         {
-            int16_t pcm = rawBuf[i] >> 16; // down-convert
+            int32_t amplified = (int32_t)(rawBuf[i] * GAIN);
+            int16_t pcm = amplified >> 16; // down-convert
             Serial.write((uint8_t *)&pcm, 2);
         }
         Serial.println(); // flush
