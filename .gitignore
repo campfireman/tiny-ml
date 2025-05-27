@@ -1,6 +1,7 @@
 # custom
 .pio
 edge_test
+*.wav
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
