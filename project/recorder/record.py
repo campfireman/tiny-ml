@@ -55,13 +55,14 @@ def main():
             f"Warning: expected {TO_READ} bytes but got {len(data)}", file=sys.stderr)
 
     # write out the WAV (skip the 44-byte header in data)
-    with wave.open(f"recordings/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}-{args.label}.wav", "wb") as wf:
+    filename = f"recordings/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}-{args.label}.wav"
+    with wave.open(filename, "wb") as wf:
         wf.setnchannels(NUM_CHANNELS)
         wf.setsampwidth(SAMPLE_WIDTH)
         wf.setframerate(SAMPLE_RATE)
         wf.writeframes(data[HEADER_SIZE:])
 
-    print("Saved recorded.wav")
+    print(f"Saved {filename}")
 
 
 if __name__ == "__main__":

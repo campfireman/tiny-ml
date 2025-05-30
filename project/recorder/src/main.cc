@@ -3,14 +3,12 @@
 
 #include "microphone.h"
 
-#define SAMPLE_BUFFER_SIZE 1024
 #define SAMPLE_RATE 16000
 #define RECORD_SECONDS 1
 #define RECORD_SAMPLES (SAMPLE_RATE * RECORD_SECONDS)
 #define GAIN 10.0
 
 int32_t rawBuf[RECORD_SAMPLES];
-int16_t resultBuf[RECORD_SAMPLES];
 
 // Write a 44-byte WAV header to Serial
 void writeWavHeader(uint32_t dataBytes)
@@ -43,7 +41,7 @@ void setup()
 {
     Serial.begin(115200);
     pinMode(LED_BUILTIN, OUTPUT);
-    microphoneInit();
+    microphoneInit(SAMPLE_RATE);
     Serial.println("Ready. Send 'r' to record.");
 }
 
@@ -52,17 +50,15 @@ void loop()
     if (Serial.available() && Serial.read() == 'r')
     {
         digitalWrite(LED_BUILTIN, HIGH);
-        uint32_t dataBytes = microphoneListen(rawBuf, resultBuf, RECORD_SAMPLES);
+        uint32_t samples = microphoneListen(rawBuf, RECORD_SAMPLES);
         digitalWrite(LED_BUILTIN, LOW);
 
-        // send header
-        writeWavHeader(dataBytes);
+        writeWavHeader(samples * sizeof(int16_t));
 
-        // send PCM16LE data
-        for (int i = 0; i < dataBytes / sizeof(int16_t); ++i)
+        for (int i = 0; i < samples; ++i)
         {
-            // Serial.println(rawBuf[i]);
-            Serial.write((uint8_t *)&resultBuf[i], 2);
+            uint16_t pcm = rawBuf[i] >> 16;
+            Serial.write((uint8_t *)&pcm, 2);
         }
         Serial.println(); // flush
     }
