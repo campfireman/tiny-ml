@@ -4,6 +4,7 @@ from abc import ABC
 from dataclasses import dataclass
 from math import floor
 from pathlib import Path
+from typing import List
 
 import keras
 import librosa
@@ -21,8 +22,6 @@ import models
 STORAGE = "storage"
 DATA_DIR = "data"
 TRAIN_DATASET_RATIO = 0.2
-LABELS = ["idle", "chillaxo"]
-NUM_CLASSES = len(LABELS)
 
 
 @dataclass
@@ -31,6 +30,7 @@ class Dataset:
     y_train: np.ndarray
     x_test: np.ndarray
     y_test: np.ndarray
+    labels: List[str]
 
 
 @dataclass
@@ -102,6 +102,7 @@ class FeatureExtraction(Job):
 
     def create_features(self):
         data_dir = Path(DATA_DIR)
+        labels = []
         samples = []
 
         for file in data_dir.iterdir():
@@ -111,7 +112,10 @@ class FeatureExtraction(Job):
                 r"\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-(\w+)", file.name)
             if not m:
                 continue
-            label = LABELS.index(m.group(1))
+            extracted_label = m.group(1)
+            if extracted_label not in labels:
+                labels.append(extracted_label)
+            label = labels.index(extracted_label)
             yy, sr = librosa.load(file, sr=None)
 
             # original
@@ -140,14 +144,15 @@ class FeatureExtraction(Job):
         y_train = y[p[:train_end]]
         x_test = x[p[train_end:]]
         y_test = y[p[train_end:]]
-        y_train = keras.utils.to_categorical(y_train, NUM_CLASSES)
-        y_test = keras.utils.to_categorical(y_test, NUM_CLASSES)
+        y_train = keras.utils.to_categorical(y_train, len(labels))
+        y_test = keras.utils.to_categorical(y_test, len(labels))
 
         return Dataset(
             x_train=x_train,
             y_train=y_train,
             x_test=x_test,
             y_test=y_test,
+            labels=labels,
         )
 
     def load(self):
@@ -161,6 +166,7 @@ class FeatureExtraction(Job):
                 y_train=data["y_train"],
                 x_test=data["x_test"],
                 y_test=data["y_test"],
+                labels=data["labels"],
             )
 
     def store(self, dataset):
@@ -189,7 +195,7 @@ class Training(Job):
         return "Model Training"
 
     def train(self, dataset):
-        model = self.build_model()
+        model = self.build_model(dataset)
         model.summary()
         early_stopping_cb = EarlyStopping(
             monitor="val_loss",
@@ -245,9 +251,9 @@ class Training(Job):
         ax2.legend(['training', 'validation'], loc='best')
         plt.show()
 
-    def build_model(self):
+    def build_model(self, dataset):
         # model = models.get_residual_model((32, 13), NUM_CLASSES)
-        model = models.get_convolutional_model((32, 13), NUM_CLASSES)
+        model = models.get_convolutional_model((32, 13), len(dataset.labels))
 
         model.compile(
             optimizer='adam',
@@ -282,7 +288,7 @@ class Evaluation(Job):
     def __repr__(self):
         return "Model Evaluation"
 
-    def execute(self, training_result):
+    def execute(self, training_result: TrainingResult):
         model = training_result.model
         ds = training_result.dataset
         score_model = model.evaluate(ds.x_test, ds.y_test)  # , verbose=0)
@@ -295,8 +301,8 @@ class Evaluation(Job):
 
         cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
 
-        cm = pd.DataFrame(cm, index=LABELS,
-                          columns=LABELS)
+        cm = pd.DataFrame(cm, index=ds.labels,
+                          columns=ds.labels)
 
         plt.figure(figsize=(4, 4))
         ax = sns.heatmap(cm*100,
@@ -457,8 +463,9 @@ class Deployment(Job):
             lines.append(", ".join(hex_bytes[i: i + per_line]))
         return ",\n".join("    " + line for line in lines)
 
-    def execute(self, optimization_result):
+    def execute(self, optimization_result: OptimizationResult):
         run_dir = self.get_run_dir()
+        labels = optimization_result.dataset.labels
 
         if not run_dir.exists():
             run_dir.mkdir(parents=True)
@@ -467,9 +474,9 @@ class Deployment(Job):
         library_name = "model"
         arr_literal = self.bytes_to_c_array(data)
 
-        max_len = max(len(lbl) for lbl in LABELS) + 1
+        max_len = max(len(lbl) for lbl in labels) + 1
 
-        labels_entries = ",\n".join(f'    "{lbl}"' for lbl in LABELS)
+        labels_entries = ",\n".join(f'    "{lbl}"' for lbl in labels)
         labels_cc = (
             f"const char available_classes[][ {max_len} ] = {{\n"
             f"{labels_entries}\n"
@@ -489,7 +496,7 @@ class Deployment(Job):
             f.write(f'#include "{library_name}.h"\n\n')
             f.write(labels_cc + "\n")
             f.write(
-                f"const int available_classes_num = {len(LABELS)};\n\n")
+                f"const int available_classes_num = {len(labels)};\n\n")
             f.write(model_cc)
 
         header = []
