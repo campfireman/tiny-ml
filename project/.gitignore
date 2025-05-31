@@ -5,6 +5,7 @@
 .vscode/ipch
 
 lib
+storage
 .download
 components
 managed_components
