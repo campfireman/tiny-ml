@@ -13,3 +13,10 @@ NOUNS = [
 
 def random_word_pair():
     return f"{random.choice(ADJECTIVES)}_{random.choice(NOUNS)}"
+
+
+def find_start(job_name, pipeline):
+    for i, job in enumerate(pipeline):
+        if job.get_job_name() == job_name:
+            return i
+    return None
