@@ -36,59 +36,75 @@ palette in :root
 
     background-color: var(--base);
 }
+
 /* Common style */
 h1 {
     color: var(--rose);
     padding-bottom: 2mm;
     margin-bottom: 12mm;
 }
+
 h2 {
     color: var(--rose);
 }
+
 h3 {
     color: var(--rose);
 }
+
 h4 {
     color: var(--rose);
 }
+
 h5 {
     color: var(--rose);
 }
+
 h6 {
     color: var(--rose);
 }
+
 a {
-    color: var(--iris);
+    color: var(--rose);
 }
+
 p {
     font-size: 20pt;
     font-weight: 600;
     color: var(--text);
 }
+
 code {
     color: var(--text);
     background-color: var(--highlight-muted);
 }
+
 text {
     color: var(--text);
 }
+
 ul {
     color: var(--subtle);
 }
+
 li {
     color: var(--subtle);
 }
+
 img {
     background-color: var(--highlight-low);
 }
+
 strong {
     color: var(--text);
     font-weight: inherit;
     font-weight: 800;
 }
+
 mjx-container {
     color: var(--text);
 }
+
 marp-pre {
     background-color: var(--overlay);
     border-color: var(--highlight-high);
@@ -98,42 +114,55 @@ marp-pre {
 .hljs-comment {
     color: var(--muted);
 }
+
 .hljs-attr {
     color: var(--foam);
 }
+
 .hljs-punctuation {
     color: var(--subtle);
 }
+
 .hljs-string {
     color: var(--gold);
 }
+
 .hljs-title {
     color: var(--foam);
 }
+
 .hljs-keyword {
     color: var(--pine);
 }
+
 .hljs-variable {
     color: var(--text);
 }
+
 .hljs-literal {
     color: var(--rose);
 }
+
 .hljs-type {
     color: var(--love);
 }
+
 .hljs-number {
     color: var(--gold);
 }
+
 .hljs-built_in {
     color: var(--love);
 }
+
 .hljs-params {
     color: var(--iris);
 }
+
 .hljs-symbol {
     color: var(--foam);
 }
+
 .hljs-meta {
     color: var(--subtle);
 }
