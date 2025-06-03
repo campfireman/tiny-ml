@@ -77,7 +77,7 @@ float scale = 0.0;
 
 // be adjusted based on the model you are using
 
-constexpr int tensorArenaSize = 128 * 1024;
+constexpr int tensorArenaSize = 16 * 1024;
 
 byte tensorArena[tensorArenaSize] __attribute__((aligned(16)));
 
@@ -137,7 +137,14 @@ void setup()
 
   // Allocate memory for the model's input and output tensors
 
-  tflInterpreter->AllocateTensors();
+  TfLiteStatus allocate_status = tflInterpreter->AllocateTensors();
+  if (allocate_status != kTfLiteOk)
+  {
+    Serial.println("Allocation failed!");
+    while (1)
+      ;
+    return;
+  }
 
   // Get pointers for the model's input and output tensors
 
@@ -145,6 +152,16 @@ void setup()
   tflOutputTensor = tflInterpreter->output(0);
   zeroPoint = tflInputTensor->params.zero_point;
   scale = tflInputTensor->params.scale;
+
+  TfLiteIntArray *dims = tflInputTensor->dims;
+  MicroPrintf("Model input rank = %d  (bytes=%d; type=%d)\n",
+              dims->size, tflInputTensor->bytes, tflInputTensor->type);
+  MicroPrintf("  dims = [");
+  for (int i = 0; i < dims->size; i++)
+  {
+    MicroPrintf(" %d", dims->data[i]);
+  }
+  MicroPrintf(" ]\n");
 }
 
 void loop()
@@ -183,7 +200,7 @@ void loop()
       // tflInputTensor->data.f[samplesRead * 3 + 0] = aY * 10;
       // tflInputTensor->data.f[samplesRead * 3 + 1] = aX * 10;
       // tflInputTensor->data.f[samplesRead * 3 + 2] = aZ * 10;
-      tflInputTensor->data.int8[samplesRead * 3 + 0] = quantize_int8(aY * 10, scale, zeroPoint);
+      tflInputTensor->data.int8[samplesRead * 3] = quantize_int8(aY * 10, scale, zeroPoint);
       tflInputTensor->data.int8[samplesRead * 3 + 1] = quantize_int8(aX * 10, scale, zeroPoint);
       tflInputTensor->data.int8[samplesRead * 3 + 2] = quantize_int8(aZ * 10, scale, zeroPoint);
       samplesRead++;
@@ -192,7 +209,13 @@ void loop()
       {
 
         // Run inferencing
+        unsigned long start = millis();
+
         TfLiteStatus invokeStatus = tflInterpreter->Invoke();
+
+        unsigned long duration = millis() - start;
+        Serial.print("Inference time (ms): ");
+        Serial.println(duration);
 
         if (invokeStatus != kTfLiteOk)
         {
