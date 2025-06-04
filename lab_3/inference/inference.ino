@@ -30,45 +30,22 @@
 #include <Arduino_LSM9DS1.h>
 
 #include <TensorFlowLite.h>
-
-#include <tensorflow/lite/micro/all_ops_resolver.h>
-
-// #include <tensorflow/lite/micro/tflite_bridge/micro_error_reporter.h>
-
+#include <tensorflow/lite/micro/micro_log.h>
+#include <tensorflow/lite/micro/micro_log.h>
+#include <tensorflow/lite/micro/micro_mutable_op_resolver.h>
 #include <tensorflow/lite/micro/micro_interpreter.h>
-
 #include <tensorflow/lite/schema/schema_generated.h>
-
-// #include <tensorflow/lite/version.h>
 
 #include "gesture_model.h"
 #include "raw_data.h"
 
 const float accelerationThreshold = 0; // threshold of significant in G's
-
 const int numSamples = 200;
-
 int samplesRead = numSamples;
 
-// global variables used for TensorFlow Lite (Micro)
-
-// tflite::MicroErrorReporter tflErrorReporter;
-
-// pull in all the TFLM ops, you can remove this line and
-
-// only pull in the TFLM ops you need, if would like to reduce
-
-// the compiled size of the sketch.
-
-tflite::AllOpsResolver tflOpsResolver;
-
 const tflite::Model *tflModel = nullptr;
-
 tflite::MicroInterpreter *tflInterpreter = nullptr;
-
 TfLiteTensor *tflInputTensor = nullptr;
-
-TfLiteTensor *tflOutputTensor = nullptr;
 
 float zeroPoint = 0.0;
 float scale = 0.0;
@@ -77,7 +54,7 @@ float scale = 0.0;
 
 // be adjusted based on the model you are using
 
-constexpr int tensorArenaSize = 16 * 1024;
+constexpr int tensorArenaSize = 128 * 1024;
 
 byte tensorArena[tensorArenaSize] __attribute__((aligned(16)));
 
@@ -89,6 +66,19 @@ inline int8_t quantize_int8(float x, float scale, int zero_point)
   if (q > 127)
     q = 127;
   return static_cast<int8_t>(q);
+}
+
+void printTensorInfo(TfLiteTensor *tensor)
+{
+  TfLiteIntArray *dims = tensor->dims;
+  MicroPrintf("Model input rank = %d  (bytes=%d; type=%d)\n",
+              dims->size, tensor->bytes, tensor->type);
+  MicroPrintf("  dims = [");
+  for (int i = 0; i < dims->size; i++)
+  {
+    MicroPrintf(" %d", dims->data[i]);
+  }
+  MicroPrintf(" ]\n");
 }
 
 void setup()
@@ -131,9 +121,21 @@ void setup()
   }
 
   // Create an interpreter to run the model
+  static tflite::MicroMutableOpResolver<11> resolver;
+  resolver.AddAdd();
+  resolver.AddConv2D();
+  resolver.AddDepthwiseConv2D();
+  resolver.AddFullyConnected();
+  resolver.AddMaxPool2D();
+  resolver.AddMul();
+  resolver.AddReshape();
+  resolver.AddSoftmax();
+  resolver.AddBatchToSpaceNd();
+  resolver.AddSpaceToBatchNd();
+  resolver.AddExpandDims();
 
   // tflInterpreter = new tflite::MicroInterpreter(tflModel, tflOpsResolver, tensorArena, tensorArenaSize, &tflErrorReporter);
-  tflInterpreter = new tflite::MicroInterpreter(tflModel, tflOpsResolver, tensorArena, tensorArenaSize);
+  tflInterpreter = new tflite::MicroInterpreter(tflModel, resolver, tensorArena, tensorArenaSize);
 
   // Allocate memory for the model's input and output tensors
 
@@ -149,19 +151,9 @@ void setup()
   // Get pointers for the model's input and output tensors
 
   tflInputTensor = tflInterpreter->input(0);
-  tflOutputTensor = tflInterpreter->output(0);
   zeroPoint = tflInputTensor->params.zero_point;
   scale = tflInputTensor->params.scale;
-
-  TfLiteIntArray *dims = tflInputTensor->dims;
-  MicroPrintf("Model input rank = %d  (bytes=%d; type=%d)\n",
-              dims->size, tflInputTensor->bytes, tflInputTensor->type);
-  MicroPrintf("  dims = [");
-  for (int i = 0; i < dims->size; i++)
-  {
-    MicroPrintf(" %d", dims->data[i]);
-  }
-  MicroPrintf(" ]\n");
+  printTensorInfo(tflInputTensor);
 }
 
 void loop()
@@ -197,16 +189,19 @@ void loop()
 
       IMU.readAcceleration(aX, aY, aZ);
 
-      // tflInputTensor->data.f[samplesRead * 3 + 0] = aY * 10;
-      // tflInputTensor->data.f[samplesRead * 3 + 1] = aX * 10;
-      // tflInputTensor->data.f[samplesRead * 3 + 2] = aZ * 10;
-      tflInputTensor->data.int8[samplesRead * 3] = quantize_int8(aY * 10, scale, zeroPoint);
-      tflInputTensor->data.int8[samplesRead * 3 + 1] = quantize_int8(aX * 10, scale, zeroPoint);
-      tflInputTensor->data.int8[samplesRead * 3 + 2] = quantize_int8(aZ * 10, scale, zeroPoint);
+      // tflInputTensor->data.int8[samplesRead * 3] = quantize_int8(aY * 10, scale, zeroPoint);
+      // tflInputTensor->data.int8[samplesRead * 3 + 1] = quantize_int8(aX * 10, scale, zeroPoint);
+      // tflInputTensor->data.int8[samplesRead * 3 + 2] = quantize_int8(aZ * 10, scale, zeroPoint);
       samplesRead++;
 
       if (samplesRead == numSamples)
       {
+        for (int i = 0; i < 200; ++i)
+        {
+          tflInputTensor->data.int8[i * 3] = -127;
+          tflInputTensor->data.int8[i * 3 + 1] = -127;
+          tflInputTensor->data.int8[i * 3 + 2] = -127;
+        }
 
         // Run inferencing
         unsigned long start = millis();
@@ -216,6 +211,8 @@ void loop()
         unsigned long duration = millis() - start;
         Serial.print("Inference time (ms): ");
         Serial.println(duration);
+        Serial.print("Arena used bytes: ");
+        Serial.println(tflInterpreter->arena_used_bytes());
 
         if (invokeStatus != kTfLiteOk)
         {
@@ -226,13 +223,14 @@ void loop()
         }
 
         // Loop through the output tensor values from the model
+        auto output = tflInterpreter->output(0);
+        // printTensorInfo(output);
 
         for (int i = 0; i < available_classes_num; i++)
         {
-
           Serial.print(available_classes[i]);
           Serial.print(": ");
-          Serial.println(tflOutputTensor->data.int8[i]);
+          Serial.println(output->data.int8[i]);
         }
 
         Serial.println();
