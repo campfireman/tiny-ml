@@ -40,7 +40,7 @@
 #include "raw_data.h"
 
 const float accelerationThreshold = 0; // threshold of significant in G's
-const int numSamples = 200;
+const int numSamples = 209;
 int samplesRead = numSamples;
 
 const tflite::Model *tflModel = nullptr;
@@ -189,19 +189,13 @@ void loop()
 
       IMU.readAcceleration(aX, aY, aZ);
 
-      // tflInputTensor->data.int8[samplesRead * 3] = quantize_int8(aY * 10, scale, zeroPoint);
-      // tflInputTensor->data.int8[samplesRead * 3 + 1] = quantize_int8(aX * 10, scale, zeroPoint);
-      // tflInputTensor->data.int8[samplesRead * 3 + 2] = quantize_int8(aZ * 10, scale, zeroPoint);
+      tflInputTensor->data.int8[samplesRead * 3] = quantize_int8(aX * 10, scale, zeroPoint);
+      tflInputTensor->data.int8[samplesRead * 3 + 1] = quantize_int8(aY * 10, scale, zeroPoint);
+      tflInputTensor->data.int8[samplesRead * 3 + 2] = quantize_int8(aZ * 10, scale, zeroPoint);
       samplesRead++;
 
       if (samplesRead == numSamples)
       {
-        for (int i = 0; i < 200; ++i)
-        {
-          tflInputTensor->data.int8[i * 3] = -127;
-          tflInputTensor->data.int8[i * 3 + 1] = -127;
-          tflInputTensor->data.int8[i * 3 + 2] = -127;
-        }
 
         // Run inferencing
         unsigned long start = millis();
