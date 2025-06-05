@@ -81,7 +81,7 @@ img[alt~="margin"] {
 ## Expected Result
 
 1. **Phase: MVP (5 points)**
-   - Self-created, small dataset
+   - Self-created, small dataset with multiple human voices
    - Detection of one command spoken clearly, close and without noise
    - Receive classification result via serial monitor
 2. **Phase: Extended MVP (10 points)**
