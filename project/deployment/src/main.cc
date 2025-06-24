@@ -46,11 +46,8 @@ static int ei_signal_get_data(size_t offset, size_t length, float *out_ptr)
   for (size_t i = 0; i < length; i++)
   {
     // convert each sample to float in [–1, 1]
-    // int16_t s = rawBuf[offset + i] >> 16;
-    int16_t s = features[offset + i];
+    int16_t s = rawBuf[offset + i] >> 16;
     out_ptr[i] = float(s) / 32768.0f;
-    // Serial.print(out_ptr[i], 6);
-    // Serial.print(",");
   }
   return ei::EIDSP_OK;
 }
@@ -89,7 +86,7 @@ void setup()
   scale = tflInputTensor->params.scale;
 }
 
-void loop()
+void printHeapInfo()
 {
   Serial.print("Heap: ");
   Serial.println(ESP.getHeapSize());
@@ -99,9 +96,16 @@ void loop()
   Serial.println(ESP.getPsramSize());
   Serial.print("Free PSRAM: ");
   Serial.println(ESP.getFreePsram());
+}
 
-  // uint32_t n = microphoneListen(rawBuf, RECORD_SAMPLES);
+void loop()
+{
 
+  Serial.println("rec");
+  uint32_t n = microphoneListen(rawBuf, RECORD_SAMPLES);
+  Serial.println("st");
+
+  unsigned long start = millis();
   // 1. Create the signal struct:
   ei::signal_t signal;
   signal.total_length = RECORD_SAMPLES;
@@ -116,8 +120,6 @@ void loop()
   ei::matrix_t mfcc_out(27,
                         NUM_MFCC_COEFFS,
                         &mfccMatrix[0][0]);
-  Serial.println(mfcc_out.cols);
-  Serial.println(mfcc_out.rows);
 
   int32_t status = ei::speechpy::feature::mfcc(
       &mfcc_out,
@@ -167,30 +169,48 @@ void loop()
       float val_f = mfccMatrix[i][j];
       int8_t val_q = quantize_int8(val_f, scale, zeroPoint);
       tflInputTensor->data.int8[idx++] = val_q;
-      Serial.print(val_f, 6);
-      Serial.print(",");
+      // Serial.print(val_f, 6);
+      // Serial.print(",");
       // Serial.println(quantize_int8(val_f, scale, zeroPoint));
     }
-    Serial.println(mfccMatrix[i][NUM_MFCC_COEFFS - 1]);
+    // Serial.println(mfccMatrix[i][NUM_MFCC_COEFFS - 1]);
   }
 
-  // TfLiteStatus invokeStatus = tflInterpreter->Invoke();
+  TfLiteStatus invokeStatus = tflInterpreter->Invoke();
 
-  // if (invokeStatus != kTfLiteOk)
-  // {
-  //   Serial.println("Invoke failed!");
-  //   while (1)
-  //     ;
-  //   return;
-  // }
+  if (invokeStatus != kTfLiteOk)
+  {
+    Serial.println("Invoke failed!");
+    while (1)
+      ;
+    return;
+  }
 
-  // for (int i = 0; i < available_classes_num; i++)
-  // {
+  unsigned long duration = millis() - start;
 
-  //   Serial.print(available_classes[i]);
-  //   Serial.print(": ");
-  //   Serial.println(tflOutputTensor->data.int8[i]);
-  // }
+  int8_t max = INT8_MIN;
+  const char *label;
+  for (int i = 0; i < available_classes_num; i++)
+  {
+
+    if (tflOutputTensor->data.int8[i] > max)
+    {
+      max = tflOutputTensor->data.int8[i];
+      label = available_classes[i];
+    }
+    Serial.print(available_classes[i]);
+    Serial.print(": ");
+    Serial.println(tflOutputTensor->data.int8[i]);
+  }
+
+  Serial.println("---");
+  Serial.print("Classification: ");
+  Serial.println(label);
+  Serial.println();
+
+  Serial.print("Call took ");
+  Serial.print(duration);
+  Serial.println(" milliseconds");
 
   Serial.println();
 }

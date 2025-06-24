@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import speechpy
 import tensorflow as tf
 from ai_edge_litert.interpreter import Interpreter
 from keras.callbacks import EarlyStopping
@@ -126,7 +127,22 @@ class FeatureExtraction(Job):
 
         x, y = [], []
         for yy, sr, label in samples:
-            mfcc = librosa.feature.mfcc(y=yy, sr=sr, n_mfcc=13).T
+            frame_length = 2048 / sr  # 0.128 s
+            frame_stride = 512 / sr  # 0.032 s
+
+            mfcc = speechpy.feature.mfcc(
+                yy,
+                sampling_frequency=sr,
+                frame_length=frame_length,
+                frame_stride=frame_stride,
+                num_cepstral=13,
+                num_filters=40,
+                fft_length=2048,
+                low_frequency=0,
+                high_frequency=None,
+                dc_elimination=True
+            ).flatten().reshape((-1, 1))
+
             x.append(mfcc)
             y.append(label)
 
@@ -169,7 +185,7 @@ class FeatureExtraction(Job):
                 labels=data["labels"],
             )
 
-    def store(self, dataset):
+    def store(self, dataset: Dataset):
         run_dir = Path(STORAGE) / self.get_job_name() / self.run_id
         archive = run_dir / "features.npz"
         # savez_compressed gives smaller files at the cost of a bit more CPU time
@@ -179,6 +195,7 @@ class FeatureExtraction(Job):
             y_train=dataset.y_train,
             x_test=dataset.x_test,
             y_test=dataset.y_test,
+            labels=dataset.labels,
         )
 
 
@@ -253,7 +270,7 @@ class Training(Job):
 
     def build_model(self, dataset):
         # model = models.get_residual_model((32, 13), NUM_CLASSES)
-        model = models.get_convolutional_model((32, 13), len(dataset.labels))
+        model = models.get_convolutional_model((351, 1), len(dataset.labels))
 
         model.compile(
             optimizer='adam',
@@ -393,7 +410,7 @@ class Optimization(Job):
             q = np.round(x/scale + zp) \
                 .clip(-128, 127) \
                 .astype(np.int8)
-            return q.reshape((1, 32, 13))
+            return q.reshape((1, 351, 1))
         else:
             return np.expand_dims(x.astype(dtype), axis=0)
 
