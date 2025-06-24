@@ -23,7 +23,6 @@
 #define NUM_MFCC_COEFFS 13
 
 int32_t rawBuf[RECORD_SAMPLES];
-int16_t input[RECORD_SAMPLES];
 float mfccMatrix[32][NUM_MFCC_COEFFS];
 
 tflite::AllOpsResolver tflOpsResolver;
@@ -31,7 +30,6 @@ const tflite::Model *tflModel = nullptr;
 tflite::MicroInterpreter *tflInterpreter = nullptr;
 TfLiteTensor *tflInputTensor = nullptr;
 TfLiteTensor *tflOutputTensor = nullptr;
-// tflite::ErrorReporter *error_reporter = nullptr;
 
 float zeroPoint = 0.0;
 float scale = 0.0;
@@ -169,11 +167,7 @@ void loop()
       float val_f = mfccMatrix[i][j];
       int8_t val_q = quantize_int8(val_f, scale, zeroPoint);
       tflInputTensor->data.int8[idx++] = val_q;
-      // Serial.print(val_f, 6);
-      // Serial.print(",");
-      // Serial.println(quantize_int8(val_f, scale, zeroPoint));
     }
-    // Serial.println(mfccMatrix[i][NUM_MFCC_COEFFS - 1]);
   }
 
   TfLiteStatus invokeStatus = tflInterpreter->Invoke();
