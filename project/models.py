@@ -1,6 +1,17 @@
 import tensorflow as tf
-from keras.models import Sequential, Model
-from keras.layers import Conv1D, MaxPooling1D, Dense, Flatten, Dropout, BatchNormalization, ReLU, Add, Input, SeparableConv1D
+from keras.layers import (
+    Add,
+    BatchNormalization,
+    Conv1D,
+    Dense,
+    Dropout,
+    Flatten,
+    Input,
+    MaxPooling1D,
+    ReLU,
+    SeparableConv1D,
+)
+from keras.models import Model, Sequential
 
 
 def bottleneck_block(x, filters, dilation_rate):
