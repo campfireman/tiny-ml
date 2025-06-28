@@ -118,6 +118,7 @@ void loop()
   ei::matrix_t mfcc_out(27,
                         NUM_MFCC_COEFFS,
                         &mfccMatrix[0][0]);
+  unsigned long signal_duration = millis() - start;
 
   int32_t status = ei::speechpy::feature::mfcc(
       &mfcc_out,
@@ -157,6 +158,7 @@ void loop()
       break;
     }
   }
+  unsigned long preprocessing_duration = millis() - start;
 
   // write to model for inference
   int idx = 0;
@@ -180,7 +182,7 @@ void loop()
     return;
   }
 
-  unsigned long duration = millis() - start;
+  unsigned long full_duration = millis() - start;
 
   int8_t max = INT8_MIN;
   const char *label;
@@ -202,8 +204,14 @@ void loop()
   Serial.println(label);
   Serial.println();
 
-  Serial.print("Call took ");
-  Serial.print(duration);
+  Serial.print("Signal took ");
+  Serial.print(signal_duration);
+  Serial.println(" milliseconds");
+  Serial.print("Preprocessing took ");
+  Serial.print(preprocessing_duration);
+  Serial.println(" milliseconds");
+  Serial.print("Full took ");
+  Serial.print(full_duration);
   Serial.println(" milliseconds");
 
   Serial.println();
