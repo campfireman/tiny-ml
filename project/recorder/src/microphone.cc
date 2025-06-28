@@ -3,7 +3,7 @@
 #include <Arduino.h>
 #include <driver/i2s.h>
 
-#define GAIN 10.0
+#define GAIN 20.0
 
 #define I2S_MIC_CHANNEL I2S_CHANNEL_FMT_ONLY_LEFT
 #define I2S_MIC_SERIAL_CLOCK GPIO_NUM_10
