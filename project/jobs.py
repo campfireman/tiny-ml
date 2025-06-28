@@ -216,7 +216,7 @@ class Training(Job):
         model.summary()
         early_stopping_cb = EarlyStopping(
             monitor="val_loss",
-            patience=10,
+            patience=20,
             # min_delta=0.01,
             mode='min',
             restore_best_weights=True
