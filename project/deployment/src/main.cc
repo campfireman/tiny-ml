@@ -17,7 +17,6 @@
 #define SAMPLE_RATE 16000
 #define RECORD_SECONDS 1
 #define RECORD_SAMPLES (SAMPLE_RATE * RECORD_SECONDS)
-#define GAIN 10.0
 #define FRAME_SIZE 2048
 #define HOP_SIZE 512
 #define NUM_MFCC_COEFFS 13
@@ -76,7 +75,12 @@ void setup()
 
   tflInterpreter = new tflite::MicroInterpreter(tflModel, tflOpsResolver, tensorArena, tensorArenaSize);
 
-  tflInterpreter->AllocateTensors(true);
+  if (tflInterpreter->AllocateTensors(true) != kTfLiteOk)
+  {
+    Serial.println("Allocation failed!");
+    while (true)
+      ;
+  }
 
   tflInputTensor = tflInterpreter->input(0);
   tflOutputTensor = tflInterpreter->output(0);
@@ -164,12 +168,15 @@ void loop()
   int idx = 0;
   for (int i = 0; i < 27; i++)
   {
-    for (int j = 0; j < NUM_MFCC_COEFFS - 1; j++)
+    for (int j = 0; j < NUM_MFCC_COEFFS; j++)
     {
       float val_f = mfccMatrix[i][j];
       int8_t val_q = quantize_int8(val_f, scale, zeroPoint);
       tflInputTensor->data.int8[idx++] = val_q;
+      // Serial.print(val_f, 6);
+      // Serial.print(",");
     }
+    // Serial.println();
   }
 
   TfLiteStatus invokeStatus = tflInterpreter->Invoke();
