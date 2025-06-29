@@ -1,0 +1,3 @@
+[submodule "project/deployment/lib/edge-impulse-sdk"]
+	path = project/deployment/lib/edge-impulse-sdk
+	url = git@gitlab.com:CampFireMan/edge-impulse-sdk-custom
