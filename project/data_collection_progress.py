@@ -20,7 +20,7 @@ def main():
         labels[label] += 1
 
     print("=== PROGRESS ===\n")
-    for label, count in labels.items():
+    for label, count in sorted(list(labels.items()), key=lambda x: x[1]):
         print(f"{label}: {count} ({count / TARGET_COUNT:.0%})")
     print()
 
