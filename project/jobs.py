@@ -101,6 +101,16 @@ class FeatureExtraction(Job):
         else:
             return y
 
+    def pad(self, yy, target_len=16000):
+        if len(yy) >= target_len:
+            return yy[:target_len]
+        print("padding data...")
+        padding_len = target_len - len(yy)
+        noise = np.concatenate([yy[:200], yy[-200:]])
+        pad = np.random.normal(np.mean(noise), np.std(
+            noise) + 1e-6, size=padding_len)
+        return np.concatenate([yy, pad])
+
     def create_features(self):
         data_dir = Path(DATA_DIR)
         labels = []
@@ -118,6 +128,7 @@ class FeatureExtraction(Job):
                 labels.append(extracted_label)
             label = labels.index(extracted_label)
             yy, sr = librosa.load(file, sr=None)
+            yy = self.pad(yy)
 
             # original
             samples.append((yy, sr, label))
@@ -215,8 +226,9 @@ class Training(Job):
         model = self.build_model(dataset)
         model.summary()
         early_stopping_cb = EarlyStopping(
-            monitor="val_loss",
-            patience=30,
+            # monitor="val_loss",
+            monitor="loss",
+            patience=40,
             # min_delta=0.01,
             mode='min',
             restore_best_weights=True
@@ -269,7 +281,7 @@ class Training(Job):
         plt.show()
 
     def build_model(self, dataset):
-        # model = models.get_residual_model((32, 13), NUM_CLASSES)
+        # model = models.get_residual_model((351, 1), len(dataset.labels))
         model = models.get_convolutional_model((351, 1), len(dataset.labels))
 
         model.compile(
