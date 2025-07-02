@@ -1,0 +1,29 @@
+import re
+from os import path
+from pathlib import Path
+from collections import defaultdict
+
+
+TARGET_COUNT = 600
+
+
+def main():
+    labels = defaultdict(int)
+    for file in Path("data/").iterdir():
+        if not file.is_file():
+            continue
+        m = re.search(
+            r"\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-(\w+)", file.name)
+        if not m:
+            continue
+        label = m.group(1)
+        labels[label] += 1
+
+    print("=== PROGRESS ===\n")
+    for label, count in labels.items():
+        print(f"{label}: {count} ({count / TARGET_COUNT:.0%})")
+    print()
+
+
+if __name__ == "__main__":
+    main()
