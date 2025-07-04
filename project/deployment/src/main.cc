@@ -22,6 +22,13 @@
 #define FRAME_SIZE 2048
 #define HOP_SIZE 512
 #define NUM_MFCC_COEFFS 13
+#define CORE_0 0
+#define CORE_1 1
+
+static QueueHandle_t commandQueue;
+
+void inference(void *pvParameters);
+void message(void *pvParameters);
 
 int32_t rawBuf[RECORD_SAMPLES];
 float mfccMatrix[32][NUM_MFCC_COEFFS];
@@ -91,6 +98,33 @@ void setup()
 
   wifi_init();
   mqttInit();
+
+  commandQueue = xQueueCreate(10, sizeof(u_int8_t)); // 10 entries
+
+  if (commandQueue == NULL)
+  {
+    Serial.println("Failed to create command queue.");
+    for (;;)
+      ;
+  }
+
+  xTaskCreatePinnedToCore(
+      inference,
+      "Task Inferennce",
+      2048,
+      NULL,
+      1,
+      NULL,
+      CORE_0);
+
+  xTaskCreatePinnedToCore(
+      message,
+      "Task message to MQTT",
+      2048,
+      NULL,
+      1,
+      NULL,
+      CORE_1);
 }
 
 void printHeapInfo()
@@ -107,126 +141,149 @@ void printHeapInfo()
 
 void loop()
 {
+}
 
-  Serial.println("rec");
-  uint32_t n = microphoneListen(rawBuf, RECORD_SAMPLES);
-  Serial.println("st");
+void inference(void *pvParameters)
+{
 
-  unsigned long start = millis();
-  // 1. Create the signal struct:
-  ei::signal_t signal;
-  signal.total_length = RECORD_SAMPLES;
-  signal.get_data = ei_signal_get_data;
+  for (;;)
+  {
+    Serial.println("rec");
+    uint32_t n = microphoneListen(rawBuf, RECORD_SAMPLES);
+    Serial.println("st");
+
+    unsigned long start = millis();
+    // 1. Create the signal struct:
+    ei::signal_t signal;
+    signal.total_length = RECORD_SAMPLES;
+    signal.get_data = ei_signal_get_data;
 
 #define MAX_FRAMES (1 + (RECORD_SAMPLES - FRAME_SIZE) / HOP_SIZE)
-  static float mfccMatrix[MAX_FRAMES][NUM_MFCC_COEFFS];
+    static float mfccMatrix[MAX_FRAMES][NUM_MFCC_COEFFS];
 
-  int num_frames = MAX_FRAMES;
+    int num_frames = MAX_FRAMES;
 
-  // Construct in one shot:
-  ei::matrix_t mfcc_out(27,
-                        NUM_MFCC_COEFFS,
-                        &mfccMatrix[0][0]);
-  unsigned long signal_duration = millis() - start;
+    // Construct in one shot:
+    ei::matrix_t mfcc_out(27,
+                          NUM_MFCC_COEFFS,
+                          &mfccMatrix[0][0]);
 
-  int32_t status = ei::speechpy::feature::mfcc(
-      &mfcc_out,
-      &signal,
-      SAMPLE_RATE,                      // 16000
-      float(FRAME_SIZE) / SAMPLE_RATE,  // e.g. 2048/16000 = 0.128 s
-      float(HOP_SIZE) / SAMPLE_RATE,    // e.g. 512/16000  = 0.032 s
-      /*num_cepstral*/ NUM_MFCC_COEFFS, // e.g. 13
-      /*num_filters*/ 40,
-      /*fft_length*/ FRAME_SIZE, // must be ≥ frame_length in samples
-      /*low_freq*/ 0,
-      /*high_freq*/ SAMPLE_RATE / 2,
-      /*append_energy*/ true,
-      /*lifter*/ 1);
-  if (status != ei::EIDSP_OK)
-  {
-    Serial.print("MFCC error, code = ");
-    Serial.println(status);
-    // Optionally decode into human-readable form:
-    switch (status)
+    int32_t status = ei::speechpy::feature::mfcc(
+        &mfcc_out,
+        &signal,
+        SAMPLE_RATE,                      // 16000
+        float(FRAME_SIZE) / SAMPLE_RATE,  // e.g. 2048/16000 = 0.128 s
+        float(HOP_SIZE) / SAMPLE_RATE,    // e.g. 512/16000  = 0.032 s
+        /*num_cepstral*/ NUM_MFCC_COEFFS, // e.g. 13
+        /*num_filters*/ 40,
+        /*fft_length*/ FRAME_SIZE, // must be ≥ frame_length in samples
+        /*low_freq*/ 0,
+        /*high_freq*/ SAMPLE_RATE / 2,
+        /*append_energy*/ true,
+        /*lifter*/ 1);
+    if (status != ei::EIDSP_OK)
     {
-    case ei::EIDSP_OK:
-      Serial.println("OK");
-      break;
-    case ei::EIDSP_OUT_OF_MEM:
-      Serial.println("OUT_OF_MEM");
-      break;
-    case ei::EIDSP_OUT_OF_BOUNDS:
-      Serial.println("MATRIX_OUT_OF_BOUNDS");
-      break;
-    case ei::EIDSP_PARAMETER_INVALID:
-      Serial.println("NOT_VALID_PARAM");
-      break;
-    // … add other EIDSP_* codes from dsp/returntypes.hpp …
-    default:
-      Serial.println("UNKNOWN_ERROR");
-      break;
+      Serial.print("MFCC error, code = ");
+      Serial.println(status);
+      // Optionally decode into human-readable form:
+      switch (status)
+      {
+      case ei::EIDSP_OK:
+        Serial.println("OK");
+        break;
+      case ei::EIDSP_OUT_OF_MEM:
+        Serial.println("OUT_OF_MEM");
+        break;
+      case ei::EIDSP_OUT_OF_BOUNDS:
+        Serial.println("MATRIX_OUT_OF_BOUNDS");
+        break;
+      case ei::EIDSP_PARAMETER_INVALID:
+        Serial.println("NOT_VALID_PARAM");
+        break;
+      // … add other EIDSP_* codes from dsp/returntypes.hpp …
+      default:
+        Serial.println("UNKNOWN_ERROR");
+        break;
+      }
+    }
+    unsigned long preprocessing_duration = millis() - start;
+
+    // write to model for inference
+    int idx = 0;
+    for (int i = 0; i < 27; i++)
+    {
+      for (int j = 0; j < NUM_MFCC_COEFFS; j++)
+      {
+        float val_f = mfccMatrix[i][j];
+        int8_t val_q = quantize_int8(val_f, scale, zeroPoint);
+        tflInputTensor->data.int8[idx++] = val_q;
+        // Serial.print(val_f, 6);
+        // Serial.print(",");
+      }
+      // Serial.println();
+    }
+
+    TfLiteStatus invokeStatus = tflInterpreter->Invoke();
+
+    if (invokeStatus != kTfLiteOk)
+    {
+      Serial.println("Invoke failed!");
+      while (1)
+        ;
+      return;
+    }
+
+    unsigned long classification_duration = millis() - start;
+
+    int8_t max = INT8_MIN;
+    const char *label;
+    uint8_t label_pos;
+    for (int i = 0; i < available_classes_num; i++)
+    {
+
+      if (tflOutputTensor->data.int8[i] > max)
+      {
+        max = tflOutputTensor->data.int8[i];
+        label = available_classes[i];
+        label_pos = i;
+      }
+      Serial.print(available_classes[i]);
+      Serial.print(": ");
+      Serial.println(tflOutputTensor->data.int8[i]);
+    }
+    xQueueSend(commandQueue, (void *)&label_pos, portMAX_DELAY);
+    unsigned long full_duration = millis() - start;
+
+    Serial.println("---");
+    Serial.print("Classification: ");
+    Serial.println(label);
+    Serial.println();
+
+    Serial.print("Preprocessing took ");
+    Serial.print(preprocessing_duration);
+    Serial.println(" milliseconds");
+
+    Serial.print("Classification took ");
+    Serial.print(classification_duration);
+    Serial.println(" milliseconds");
+
+    Serial.print("Full took ");
+    Serial.print(full_duration);
+    Serial.println(" milliseconds");
+
+    Serial.println();
+  }
+}
+
+void message(void *pvParameters)
+{
+  uint8_t pos;
+  for (;;)
+  {
+    if (xQueueReceive(commandQueue, &pos, portMAX_DELAY) == pdTRUE)
+    {
+      mqttSend(available_classes[pos]);
+      Serial.println("Send command.");
     }
   }
-  unsigned long preprocessing_duration = millis() - start;
-
-  // write to model for inference
-  int idx = 0;
-  for (int i = 0; i < 27; i++)
-  {
-    for (int j = 0; j < NUM_MFCC_COEFFS; j++)
-    {
-      float val_f = mfccMatrix[i][j];
-      int8_t val_q = quantize_int8(val_f, scale, zeroPoint);
-      tflInputTensor->data.int8[idx++] = val_q;
-      // Serial.print(val_f, 6);
-      // Serial.print(",");
-    }
-    // Serial.println();
-  }
-
-  TfLiteStatus invokeStatus = tflInterpreter->Invoke();
-
-  if (invokeStatus != kTfLiteOk)
-  {
-    Serial.println("Invoke failed!");
-    while (1)
-      ;
-    return;
-  }
-
-  unsigned long full_duration = millis() - start;
-
-  int8_t max = INT8_MIN;
-  const char *label;
-  for (int i = 0; i < available_classes_num; i++)
-  {
-
-    if (tflOutputTensor->data.int8[i] > max)
-    {
-      max = tflOutputTensor->data.int8[i];
-      label = available_classes[i];
-    }
-    Serial.print(available_classes[i]);
-    Serial.print(": ");
-    Serial.println(tflOutputTensor->data.int8[i]);
-  }
-
-  Serial.println("---");
-  Serial.print("Classification: ");
-  Serial.println(label);
-  Serial.println();
-
-  Serial.print("Signal took ");
-  Serial.print(signal_duration);
-  Serial.println(" milliseconds");
-  Serial.print("Preprocessing took ");
-  Serial.print(preprocessing_duration);
-  Serial.println(" milliseconds");
-  Serial.print("Full took ");
-  Serial.print(full_duration);
-  Serial.println(" milliseconds");
-
-  Serial.println();
-
-  mqttSend(label);
 }
