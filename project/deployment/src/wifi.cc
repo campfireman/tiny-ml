@@ -2,10 +2,11 @@
 #include <WiFiMulti.h>
 
 #include "secrets.h"
+#include "wifi.hpp"
 
 WiFiMulti WiFiMulti;
 
-void wifi_init()
+void wifiInit()
 {
     // We start by connecting to a WiFi network
     WiFiMulti.addAP(WIFI_SSID, WIFI_PASS);

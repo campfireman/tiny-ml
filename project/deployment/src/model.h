@@ -2,7 +2,7 @@
 #define TENSORFLOW_LITE_MODEL_H_
 
 // Classes that can be detected by the neural network
-extern const char available_classes[][ 10 ];
+extern const char available_classes[][10];
 extern const int available_classes_num;
 
 // Pre-trained neural network
