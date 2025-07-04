@@ -3,6 +3,7 @@
 edge_test
 *.wav
 *.bkp
+secrets.h
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
