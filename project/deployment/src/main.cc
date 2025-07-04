@@ -13,6 +13,8 @@
 #include "microphone.h"
 #include "model.h"
 #include "raw_data.h"
+#include "wifi.h"
+#include "mqtt.h"
 
 #define SAMPLE_RATE 16000
 #define RECORD_SECONDS 1
@@ -86,6 +88,9 @@ void setup()
   tflOutputTensor = tflInterpreter->output(0);
   zeroPoint = tflInputTensor->params.zero_point;
   scale = tflInputTensor->params.scale;
+
+  wifi_init();
+  mqttInit();
 }
 
 void printHeapInfo()
@@ -222,4 +227,6 @@ void loop()
   Serial.println(" milliseconds");
 
   Serial.println();
+
+  mqttSend(label);
 }
