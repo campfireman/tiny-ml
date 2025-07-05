@@ -235,9 +235,12 @@ class Training(Job):
         )
         callbacks = [early_stopping_cb, ]
 
-        num_epochs = 50
-        history = model.fit(dataset.x_train, dataset.y_train, batch_size=128,
-                            epochs=num_epochs, validation_split=0.1, callbacks=callbacks)
+        num_epochs = 200
+        history = model.fit(
+            dataset.x_train, dataset.y_train, batch_size=128,
+            validation_data=(dataset.x_test, dataset.y_test),
+            epochs=num_epochs, callbacks=callbacks,
+        )
         self.plot_training_history(history, 1)
         return model
 
