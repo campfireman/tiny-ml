@@ -5,6 +5,7 @@ import sys
 import wave
 from datetime import datetime
 from time import sleep
+from pathlib import Path
 
 import serial
 
@@ -31,6 +32,8 @@ def main():
     parser = argparse.ArgumentParser("Recorder with Playback")
     parser.add_argument("port", type=str,
                         help="Serial port (e.g. /dev/tty.usbserial-XYZ)")
+    parser.add_argument("extra_label", type=str,
+                        help="Will be added to the filename")
     parser.add_argument("playfile", type=str,
                         help="Path to the .wav file to play during recording")
     args = parser.parse_args()
@@ -65,14 +68,15 @@ def main():
               file=sys.stderr)
 
     # write out the WAV (skip the 44-byte header)
-    filename = f"recordings/{os.path.basename(args.playfile)}"
-    with wave.open(filename, "wb") as wf:
+    orig_path = Path(args.playfile)
+    path = f"recordings/{orig_path.stem}-{args.extra_label}{orig_path.suffix}"
+    with wave.open(path, "wb") as wf:
         wf.setnchannels(NUM_CHANNELS)
         wf.setsampwidth(SAMPLE_WIDTH)
         wf.setframerate(SAMPLE_RATE)
         wf.writeframes(data[HEADER_SIZE:])
 
-    print(f"Saved {filename}")
+    print(f"Saved {path}")
 
 
 if __name__ == "__main__":
