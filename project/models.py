@@ -1,6 +1,4 @@
-import tensorflow as tf
-from keras import layers
-from keras.layers import (
+from tensorflow.keras.layers import (
     Activation,
     Add,
     AveragePooling1D,
@@ -16,7 +14,8 @@ from keras.layers import (
     ReLU,
     SeparableConv1D,
 )
-from keras.models import Model, Sequential
+from tensorflow.keras.models import Model, Sequential
+from tensorflow.keras.regularizers import l2
 
 
 def bottleneck_block(x, filters, dilation_rate):
@@ -54,7 +53,7 @@ def get_residual_model(input_shape, num_classes):
 
     x = Flatten()(x)
     x = Dense(16, activation='relu',
-              kernel_regularizer=tf.keras.regularizers.l2(1e-4))(x)
+              kernel_regularizer=l2(1e-4))(x)
     x = Dropout(0.3)(x)
     out = Dense(num_classes, activation='softmax', name='y_pred')(x)
 
@@ -63,7 +62,8 @@ def get_residual_model(input_shape, num_classes):
 
 def get_convolutional_model(input_shape, num_classes):
     return Sequential([
-        Conv1D(16, kernel_size=3, activation='relu', input_shape=input_shape),
+        Input(input_shape),
+        Conv1D(16, kernel_size=3, activation='relu'),
         BatchNormalization(),
         MaxPooling1D(pool_size=2),
 
@@ -71,7 +71,13 @@ def get_convolutional_model(input_shape, num_classes):
         BatchNormalization(),
         MaxPooling1D(pool_size=2),
 
-        Dropout(0.3),
+        Dropout(0.2),
+
+        Conv1D(32, kernel_size=3, activation='relu'),
+        BatchNormalization(),
+        MaxPooling1D(pool_size=2),
+
+        Dropout(0.2),
 
         Conv1D(32, kernel_size=3, activation='relu'),
         BatchNormalization(),
@@ -80,7 +86,7 @@ def get_convolutional_model(input_shape, num_classes):
         Flatten(),
 
         Dense(32, activation='relu',
-              kernel_regularizer=tf.keras.regularizers.l2(1e-4)),
+              kernel_regularizer=l2(1e-4)),
         Dropout(0.3),
 
         Dense(num_classes, activation='softmax', name='y_pred')
@@ -88,41 +94,41 @@ def get_convolutional_model(input_shape, num_classes):
 
 
 def ds_conv_block(x, filters):
-    x = layers.DepthwiseConv1D(
+    x = DepthwiseConv1D(
         kernel_size=3,
         padding='same',
     )(x)
-    x = layers.BatchNormalization()(x)
-    x = layers.ReLU()(x)
-    x = layers.SeparableConv1D(
+    x = BatchNormalization()(x)
+    x = ReLU()(x)
+    x = SeparableConv1D(
         filters, kernel_size=1, padding='same',
-        depthwise_regularizer=tf.keras.regularizers.l2(1e-4),
+        depthwise_regularizer=l2(1e-4),
     )(x)
-    x = layers.BatchNormalization()(x)
-    x = layers.ReLU()(x)
-    x = layers.Dropout(0.1)(x)
+    x = BatchNormalization()(x)
+    x = ReLU()(x)
+    x = Dropout(0.1)(x)
     return x
 
 
 def get_ds_cnn_model(input_shape, num_classes):
-    inputs = tf.keras.Input(shape=input_shape)   # e.g. (351, 1)
+    inputs = Input(shape=input_shape)   # e.g. (351, 1)
 
     # First separable‐conv block
-    x = layers.SeparableConv1D(
+    x = SeparableConv1D(
         8, kernel_size=5, padding='same')(inputs)
-    x = layers.BatchNormalization()(x)
-    x = layers.ReLU()(x)
-    x = layers.MaxPooling1D(pool_size=2)(x)
+    x = BatchNormalization()(x)
+    x = ReLU()(x)
+    x = MaxPooling1D(pool_size=2)(x)
 
     # Additional separable‐conv blocks
     for filters in (8, 8, 8):
         x = ds_conv_block(x, filters)
 
     # Classifier head
-    x = layers.Flatten()(x)
-    x = layers.Dense(32, activation='relu',
-                     kernel_regularizer=tf.keras.regularizers.l2(1e-4))(x)
-    x = layers.Dropout(0.25)(x)
-    outputs = layers.Dense(num_classes, activation='softmax', name='y_pred')(x)
+    x = Flatten()(x)
+    x = Dense(32, activation='relu',
+              kernel_regularizer=l2(1e-4))(x)
+    x = Dropout(0.25)(x)
+    outputs = Dense(num_classes, activation='softmax', name='y_pred')(x)
 
     return Model(inputs, outputs)
