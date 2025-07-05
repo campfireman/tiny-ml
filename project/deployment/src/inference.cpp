@@ -16,7 +16,7 @@ TfLiteTensor *tflOutputTensor = nullptr;
 float zeroPoint = 0.0;
 float scale = 0.0;
 
-constexpr int tensorArenaSize = 16 * 1024;
+constexpr int tensorArenaSize = 32 * 1024;
 
 byte tensorArena[tensorArenaSize] __attribute__((aligned(16)));
 
