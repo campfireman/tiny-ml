@@ -7,6 +7,8 @@
 #include "preprocessing.hpp"
 #include "raw_data.h"
 
+#define GAIN 20
+
 void mfcc(int32_t input[RECORD_SAMPLES], float output[27][NUM_MFCC_COEFFS])
 {
     // 1. Create the signal struct:
@@ -18,7 +20,7 @@ void mfcc(int32_t input[RECORD_SAMPLES], float output[27][NUM_MFCC_COEFFS])
         for (size_t i = 0; i < length; i++)
         {
             // convert each sample to float in [–1, 1]
-            int16_t s = input[offset + i] >> 16;
+            int16_t s = (input[offset + i] * GAIN) >> 16;
             // int16_t s = features[offset + i];
             out_ptr[i] = float(s) / 32768.0f;
         }

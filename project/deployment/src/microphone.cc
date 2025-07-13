@@ -3,8 +3,6 @@
 #include <Arduino.h>
 #include <driver/i2s.h>
 
-#define GAIN 20.0
-
 #define I2S_MIC_CHANNEL I2S_CHANNEL_FMT_ONLY_LEFT
 #define I2S_MIC_SERIAL_CLOCK GPIO_NUM_10
 #define I2S_MIC_LEFT_RIGHT_CLOCK GPIO_NUM_17
@@ -39,11 +37,5 @@ uint32_t microphoneListen(int32_t *rawBuf, int32_t noSamples)
 {
     size_t bytesIn = 0;
     i2s_read(I2S_NUM_0, rawBuf, noSamples * sizeof(int32_t), &bytesIn, portMAX_DELAY);
-    int samples = bytesIn / sizeof(int32_t);
-
-    for (int i = 0; i < samples; ++i)
-    {
-        rawBuf[i] = (int32_t)(rawBuf[i] * GAIN);
-    }
-    return samples;
+    return bytesIn / sizeof(int32_t);
 }
