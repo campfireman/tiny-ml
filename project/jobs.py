@@ -6,19 +6,17 @@ from math import floor
 from pathlib import Path
 from typing import List
 
-import keras
 import librosa
 import matplotlib.pyplot as plt
+import models
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import speechpy
 import tensorflow as tf
-from ai_edge_litert.interpreter import Interpreter
 from keras.callbacks import EarlyStopping
 from sklearn.metrics import confusion_matrix
-
-import models
+from tensorflow import keras
 
 STORAGE = "storage"
 DATA_DIR = "data"
@@ -124,6 +122,8 @@ class FeatureExtraction(Job):
             if not m:
                 continue
             extracted_label = m.group(1)
+            # if extracted_label in {"zenmode"}:
+            #     continue
             if extracted_label not in labels:
                 labels.append(extracted_label)
             label = labels.index(extracted_label)
@@ -133,8 +133,11 @@ class FeatureExtraction(Job):
             # original
             samples.append((yy, sr, label))
             # augmented
-            y_aug = self.perturb(yy, sr)
-            samples.append((y_aug, sr, label))
+            if extracted_label not in {"unknown", "idle"}:
+                y_aug = self.perturb(yy, sr)
+                samples.append((y_aug, sr, label))
+                y_aug = self.perturb(yy, sr)
+                samples.append((y_aug, sr, label))
 
         x, y = [], []
         for yy, sr, label in samples:
@@ -285,18 +288,19 @@ class Training(Job):
 
     def build_model(self, dataset):
         # model = models.get_residual_model((351, 1), len(dataset.labels))
-        model = models.get_convolutional_model((351, 1), len(dataset.labels))
+        # model = models.get_convolutional_model((351, 1), len(dataset.labels))
+        model = models.get_ds_cnn_model((351, 1), len(dataset.labels))
 
         model.compile(
             optimizer='adam',
             loss='categorical_crossentropy',
-            metrics=['accuracy']
+            metrics=['accuracy'],
         )
 
         return model
 
     def load_model(self):
-        model = tf.keras.models.load_model(self.build_model_path())
+        model = keras.models.load_model(self.build_model_path())
         model.summary()
         return model
 
@@ -434,7 +438,7 @@ class Optimization(Job):
         self.evaluate_model(optimized_model, dataset)
 
     def evaluate_model(self, model, dataset):
-        if isinstance(model, tf.keras.Model):
+        if isinstance(model, keras.Model):
             predictions = model.predict(dataset.x_test, batch_size=1)
             pred_labels = np.argmax(predictions, axis=1)
             true_labels = np.argmax(dataset.y_test, axis=1)
@@ -442,7 +446,7 @@ class Optimization(Job):
             print(f"Model accuracy: {accuracy:.4f}")
             print("Estimated RAM usage: N/A for Keras model")
         else:
-            interpreter = Interpreter(model_content=model)
+            interpreter = tf.lite.Interpreter(model_content=model)
             interpreter.allocate_tensors()
 
             input_details = interpreter.get_input_details()

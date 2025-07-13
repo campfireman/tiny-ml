@@ -63,7 +63,7 @@ def get_residual_model(input_shape, num_classes):
 def get_convolutional_model(input_shape, num_classes):
     return Sequential([
         Input(input_shape),
-        Conv1D(16, kernel_size=3, activation='relu'),
+        Conv1D(16, kernel_size=5, activation='relu'),
         BatchNormalization(),
         MaxPooling1D(pool_size=2),
 
@@ -71,13 +71,19 @@ def get_convolutional_model(input_shape, num_classes):
         BatchNormalization(),
         MaxPooling1D(pool_size=2),
 
-        Dropout(0.2),
+        Dropout(0.15),
 
         Conv1D(32, kernel_size=3, activation='relu'),
         BatchNormalization(),
         MaxPooling1D(pool_size=2),
 
-        Dropout(0.2),
+        Dropout(0.15),
+
+        Conv1D(32, kernel_size=3, activation='relu'),
+        BatchNormalization(),
+        MaxPooling1D(pool_size=2),
+
+        Dropout(0.15),
 
         Conv1D(32, kernel_size=3, activation='relu'),
         BatchNormalization(),
@@ -106,6 +112,7 @@ def ds_conv_block(x, filters):
     )(x)
     x = BatchNormalization()(x)
     x = ReLU()(x)
+    x = MaxPooling1D()(x)
     x = Dropout(0.1)(x)
     return x
 
@@ -115,13 +122,13 @@ def get_ds_cnn_model(input_shape, num_classes):
 
     # First separable‐conv block
     x = SeparableConv1D(
-        8, kernel_size=5, padding='same')(inputs)
+        32, kernel_size=5, padding='same')(inputs)
     x = BatchNormalization()(x)
     x = ReLU()(x)
     x = MaxPooling1D(pool_size=2)(x)
 
     # Additional separable‐conv blocks
-    for filters in (8, 8, 8):
+    for filters in (72, 72):
         x = ds_conv_block(x, filters)
 
     # Classifier head
