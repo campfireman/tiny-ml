@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <Arduino_LSM9DS1.h>
 
+#include "audio_buffer.hpp"
 #include "inference.hpp"
 #include "microphone.h"
 #include "model.h"
@@ -11,17 +12,26 @@
 #define SAMPLE_RATE 16000
 #define RECORD_SECONDS 1
 #define RECORD_SAMPLES (SAMPLE_RATE * RECORD_SECONDS)
+#define SEGMENT_NUMBER 4
+#define SEGMENT_LENGTH (RECORD_SAMPLES / SEGMENT_NUMBER)
 #define NUM_MFCC_COEFFS 13
 #define CORE_0 0
 #define CORE_1 1
 
-static QueueHandle_t commandQueue;
+#define DEBUG_MQTT 1
+#define DEBUG_PERFORMANCE 0
 
+static QueueHandle_t audioQueue;
+static QueueHandle_t messageQueue;
+
+void listen(void *pvParameters);
 void process(void *pvParameters);
 void message(void *pvParameters);
 
 int32_t rawBuf[RECORD_SAMPLES];
 float mfccMatrix[32][NUM_MFCC_COEFFS];
+
+static AudioBuffer *audio_buf;
 
 void setup()
 {
@@ -31,10 +41,12 @@ void setup()
   inferenceInit();
   wifiInit();
   mqttInit();
+  audio_buf = new AudioBuffer(SEGMENT_LENGTH * (SEGMENT_NUMBER + 1), RECORD_SAMPLES);
 
-  commandQueue = xQueueCreate(10, sizeof(u_int8_t));
+  messageQueue = xQueueCreate(10, sizeof(u_int8_t));
+  audioQueue = xQueueCreate(10, sizeof(int32_t *));
 
-  if (commandQueue == NULL)
+  if (messageQueue == NULL)
   {
     Serial.println("Failed to create command queue.");
     for (;;)
@@ -42,8 +54,17 @@ void setup()
   }
 
   xTaskCreatePinnedToCore(
+      listen,
+      "Audio listening",
+      2048,
+      NULL,
+      1,
+      NULL,
+      CORE_0);
+
+  xTaskCreatePinnedToCore(
       process,
-      "Audio processing",
+      "Data processing",
       2048,
       NULL,
       1,
@@ -64,18 +85,37 @@ void loop()
 {
 }
 
+void listen(void *pvParameters)
+{
+  int initialSegmentCount = 0;
+  for (;;)
+  {
+    uint32_t n = microphoneListen(audio_buf->startFillSegment(), SEGMENT_LENGTH);
+    audio_buf->stopFillSegment(n);
+    if (initialSegmentCount < SEGMENT_NUMBER)
+    {
+      initialSegmentCount++;
+      continue;
+    }
+    int32_t *windowPtr = audio_buf->getLatestWindow();
+    xQueueSend(audioQueue, &windowPtr, portMAX_DELAY);
+  }
+}
+
 void process(void *pvParameters)
 {
 
+  int32_t *window;
   for (;;)
   {
-    Serial.println("rec");
-    uint32_t n = microphoneListen(rawBuf, RECORD_SAMPLES);
-    Serial.println("st");
+    if (xQueueReceive(audioQueue, &window, portMAX_DELAY) != pdTRUE)
+    {
+      continue;
+    }
 
     unsigned long start = millis();
 
-    mfcc(rawBuf, mfccMatrix);
+    mfcc(window, mfccMatrix);
 
     unsigned long preprocessing_duration = millis() - start;
 
@@ -84,10 +124,11 @@ void process(void *pvParameters)
 
     unsigned long classification_duration = millis() - start;
 
-    xQueueSend(commandQueue, (void *)&label_pos, portMAX_DELAY);
+    xQueueSend(messageQueue, (void *)&label_pos, portMAX_DELAY);
 
     unsigned long full_duration = millis() - start;
 
+#if DEBUG_PERFORMANCE == 1
     Serial.println("---");
     Serial.print("Classification: ");
     Serial.println(label);
@@ -106,6 +147,7 @@ void process(void *pvParameters)
     Serial.println(" milliseconds");
 
     Serial.println();
+#endif
   }
 }
 
@@ -114,10 +156,15 @@ void message(void *pvParameters)
   uint8_t pos;
   for (;;)
   {
-    if (xQueueReceive(commandQueue, &pos, portMAX_DELAY) == pdTRUE)
+    if (xQueueReceive(messageQueue, &pos, portMAX_DELAY) != pdTRUE)
     {
-      mqttSend(available_classes[pos]);
-      Serial.println("Sent command.");
+      continue;
     }
+#if DEBUG_MQTT == 0
+    mqttSend(available_classes[pos]);
+#else
+    Serial.print("Sent MQTT command: ");
+    Serial.println(available_classes[pos]);
+#endif
   }
 }

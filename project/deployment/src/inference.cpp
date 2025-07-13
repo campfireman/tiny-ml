@@ -7,6 +7,8 @@
 #include "log.hpp"
 #include "model.h"
 
+#define DEBUG_CLASSIFICATION 0
+
 tflite::AllOpsResolver tflOpsResolver;
 const tflite::Model *tflModel = nullptr;
 tflite::MicroInterpreter *tflInterpreter = nullptr;
@@ -92,9 +94,11 @@ uint8_t infer(float mfccMatrix[32][NUM_MFCC_COEFFS])
             max = tflOutputTensor->data.int8[i];
             label_pos = i;
         }
+#if DEBUG_CLASSIFICATION == 1
         Serial.print(available_classes[i]);
         Serial.print(": ");
         Serial.println(tflOutputTensor->data.int8[i]);
+#endif
     }
     return label_pos;
 }
