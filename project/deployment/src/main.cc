@@ -18,7 +18,7 @@
 #define CORE_0 0
 #define CORE_1 1
 
-#define DEBUG_MQTT 1
+#define DEBUG_MQTT 0
 #define DEBUG_PERFORMANCE 0
 
 static QueueHandle_t audioQueue;
@@ -113,20 +113,34 @@ void process(void *pvParameters)
       continue;
     }
 
+#if DEBUG_PERFORMANCE == 1
     unsigned long start = millis();
+#endif
 
     mfcc(window, mfccMatrix);
 
+#if DEBUG_PERFORMANCE == 1
     unsigned long preprocessing_duration = millis() - start;
+#endif
 
-    uint8_t label_pos = infer(mfccMatrix);
+    int8_t label_pos = infer(mfccMatrix);
+
+    if (label_pos == -1)
+    {
+      continue;
+    }
+
     const char *label = available_classes[label_pos];
 
+#if DEBUG_PERFORMANCE == 1
     unsigned long classification_duration = millis() - start;
+#endif
 
     xQueueSend(messageQueue, (void *)&label_pos, portMAX_DELAY);
 
+#if DEBUG_PERFORMANCE == 1
     unsigned long full_duration = millis() - start;
+#endif
 
 #if DEBUG_PERFORMANCE == 1
     Serial.println("---");
