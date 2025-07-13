@@ -8,7 +8,7 @@ from google.cloud import texttospeech
 from datetime import datetime
 
 COMMANDS = [
-    # "chillaxo",
+    "chillaxo",
     "goodnight",
     "sunblast",
     "zenmode",
