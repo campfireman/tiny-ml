@@ -8,6 +8,7 @@
 #include "model.h"
 
 #define DEBUG_CLASSIFICATION 0
+#define CONFIDENCE_THRESHOLD 40
 
 tflite::AllOpsResolver tflOpsResolver;
 const tflite::Model *tflModel = nullptr;
@@ -58,7 +59,7 @@ void inferenceInit()
     scale = tflInputTensor->params.scale;
 }
 
-uint8_t infer(float mfccMatrix[32][NUM_MFCC_COEFFS])
+int8_t infer(float mfccMatrix[32][NUM_MFCC_COEFFS])
 {
     // write to model for inference
     int idx = 0;
@@ -85,7 +86,7 @@ uint8_t infer(float mfccMatrix[32][NUM_MFCC_COEFFS])
     }
 
     int8_t max = INT8_MIN;
-    uint8_t label_pos;
+    int8_t label_pos;
     for (int i = 0; i < available_classes_num; i++)
     {
 
@@ -99,6 +100,11 @@ uint8_t infer(float mfccMatrix[32][NUM_MFCC_COEFFS])
         Serial.print(": ");
         Serial.println(tflOutputTensor->data.int8[i]);
 #endif
+    }
+    const char *label = available_classes[label_pos];
+    if (label != "idle" && label != "unknown" && max < CONFIDENCE_THRESHOLD)
+    {
+        return -1;
     }
     return label_pos;
 }
