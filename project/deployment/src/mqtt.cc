@@ -8,7 +8,6 @@
 #include "mqtt.h"
 #include "secrets.h"
 
-#define DEBUG true
 #define MQTT_ERR -1
 
 String mqttTopic = "";
@@ -77,7 +76,9 @@ void mqttRefresh()
 void mqttSend(String command)
 {
     mqttRefresh();
+#if DEBUG_MQTT == 1
     Serial.println("Attempting to send to MQTT...");
+#endif
 
     if (WiFi.status() == WL_CONNECTED && mqttclient.connected())
     {
@@ -94,7 +95,9 @@ void publishSensorData(String measurement, String displayName, String unit, Stri
     String publishTopic = String(mqttTopic) + measurement;
 
     mqttclient.publish(publishTopic.c_str(), data.c_str()); // Use data instead of int
+#if DEBUG_MQTT == 1
     Serial.println("Published to topic: " + publishTopic + " data: " + data);
+#endif
 
     if (HOASS_AUTO_DISCOVERY && !configPublished)
     {
