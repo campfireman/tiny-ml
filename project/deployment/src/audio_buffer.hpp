@@ -9,13 +9,13 @@
 class AudioBuffer
 {
 public:
-    AudioBuffer(size_t maxSamples, size_t windowSamples);
+    AudioBuffer(size_t maxSamples, size_t segLen, size_t windowSamples);
 
     ~AudioBuffer();
 
     int32_t *startFillSegment();
 
-    void stopFillSegment(size_t segLen);
+    void stopFillSegment();
 
     int32_t *getLatestWindow();
 
@@ -26,6 +26,7 @@ public:
 
 private:
     size_t m_ringSize;
+    size_t m_segLen;
     size_t m_windowSize;
     int32_t *m_ringBuf;
     int32_t *m_winBuf;

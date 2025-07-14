@@ -20,6 +20,7 @@
 
 #define DEBUG_MQTT 0
 #define DEBUG_PERFORMANCE 0
+#define DEBUG_AUDIO_PERFORMANCE 0
 
 static QueueHandle_t audioQueue;
 static QueueHandle_t messageQueue;
@@ -41,10 +42,10 @@ void setup()
   inferenceInit();
   wifiInit();
   mqttInit();
-  audio_buf = new AudioBuffer(SEGMENT_LENGTH * (SEGMENT_NUMBER + 1), RECORD_SAMPLES);
+  audio_buf = new AudioBuffer(SEGMENT_LENGTH * (SEGMENT_NUMBER + 1), SEGMENT_LENGTH, RECORD_SAMPLES);
 
-  messageQueue = xQueueCreate(10, sizeof(u_int8_t));
-  audioQueue = xQueueCreate(10, sizeof(int32_t *));
+  messageQueue = xQueueCreate(10, sizeof(uint8_t));
+  audioQueue = xQueueCreate(10, sizeof(uint8_t));
 
   if (messageQueue == NULL)
   {
@@ -91,24 +92,32 @@ void listen(void *pvParameters)
   for (;;)
   {
     uint32_t n = microphoneListen(audio_buf->startFillSegment(), SEGMENT_LENGTH);
-    audio_buf->stopFillSegment(n);
+#if DEBUG_AUDIO_PERFORMANCE == 1
+    unsigned long start = millis();
+#endif
+    audio_buf->stopFillSegment();
     if (initialSegmentCount < SEGMENT_NUMBER)
     {
       initialSegmentCount++;
       continue;
     }
-    int32_t *windowPtr = audio_buf->getLatestWindow();
-    xQueueSend(audioQueue, &windowPtr, portMAX_DELAY);
+    uint8_t sig = 1;
+    xQueueSend(audioQueue, (void *)&sig, portMAX_DELAY);
+#if DEBUG_AUDIO_PERFORMANCE == 1
+    Serial.print("Audio took ");
+    Serial.print(millis() - start);
+    Serial.println(" milliseconds");
+#endif
   }
 }
 
 void process(void *pvParameters)
 {
 
-  int32_t *window;
+  uint8_t sig;
   for (;;)
   {
-    if (xQueueReceive(audioQueue, &window, portMAX_DELAY) != pdTRUE)
+    if (xQueueReceive(audioQueue, &sig, portMAX_DELAY) != pdTRUE)
     {
       continue;
     }
@@ -116,6 +125,7 @@ void process(void *pvParameters)
 #if DEBUG_PERFORMANCE == 1
     unsigned long start = millis();
 #endif
+    int32_t *window = audio_buf->getLatestWindow();
 
     mfcc(window, mfccMatrix);
 
@@ -180,5 +190,6 @@ void message(void *pvParameters)
     Serial.print("Sent MQTT command: ");
     Serial.println(available_classes[pos]);
 #endif
+    delay(10);
   }
 }
