@@ -67,25 +67,13 @@ def get_convolutional_model(input_shape, num_classes):
         BatchNormalization(),
         MaxPooling1D(pool_size=2),
 
-        Conv1D(32, kernel_size=3, activation='relu'),
+        SeparableConv1D(36, kernel_size=3, activation='relu'),
         BatchNormalization(),
         MaxPooling1D(pool_size=2),
 
         Dropout(0.15),
 
-        Conv1D(32, kernel_size=3, activation='relu'),
-        BatchNormalization(),
-        MaxPooling1D(pool_size=2),
-
-        Dropout(0.15),
-
-        Conv1D(32, kernel_size=3, activation='relu'),
-        BatchNormalization(),
-        MaxPooling1D(pool_size=2),
-
-        Dropout(0.15),
-
-        Conv1D(32, kernel_size=3, activation='relu'),
+        SeparableConv1D(36, kernel_size=3, activation='relu'),
         BatchNormalization(),
         MaxPooling1D(pool_size=2),
 
@@ -113,7 +101,7 @@ def ds_conv_block(x, filters):
     x = BatchNormalization()(x)
     x = ReLU()(x)
     x = MaxPooling1D()(x)
-    x = Dropout(0.1)(x)
+    x = Dropout(0.15)(x)
     return x
 
 
@@ -128,7 +116,7 @@ def get_ds_cnn_model(input_shape, num_classes):
     x = MaxPooling1D(pool_size=2)(x)
 
     # Additional separable‐conv blocks
-    for filters in (72, 72):
+    for filters in (64, 64, 64):
         x = ds_conv_block(x, filters)
 
     # Classifier head
