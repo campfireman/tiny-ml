@@ -43,6 +43,26 @@ Ture Claussen
 
 ---
 
+## Approach
+
+<div class="columns">
+<div>
+
+![arduino](./assets/arduino_nano_esp32.jpg)
+
+</div>
+
+<div>
+
+- **Hardware**: [Arduino Nano ESP32](https://docs.arduino.cc/hardware/nano-esp32/) (dual core, 240Mhz, 512kB SRAM) with external I2S microphone
+- **Preprocessing**: 13 Mel-frequency cepstral coefficients (MFCCs)
+- **Optimization**: Quantization, Tensorflow Optimization
+
+</div>
+</div>
+
+---
+
 ## Data Collection
 
 <div class="columns">
@@ -109,6 +129,10 @@ Ture Claussen
 ## Memory Footprint
 
 ![memory center margin](assets/memory.drawio.png)
+
+---
+
+## Demo Time!
 
 ---
 
