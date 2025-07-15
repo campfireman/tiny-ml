@@ -11,7 +11,11 @@ theme: rose-pine-dawn
 }
 
 img {
-    background-color: transparent!important;
+    background-color: transparent !important;
+    max-height: 55vh;
+    height: auto;
+    width: auto;
+    max-width: 100%;
 }
 
 img[alt~="center"] {
@@ -23,7 +27,6 @@ img[alt~="margin"] {
     margin-top: 2em;
     margin-bottom: 2em;
 }
-
 </style>
 
 # TinyML Project: Keyword Spotting
@@ -40,15 +43,72 @@ Ture Claussen
 
 ---
 
+## Data Collection
+
+<div class="columns">
+<div>
+
+### Raw
+
+- sunblast: 413s
+- zenmode: 416s
+- chillaxo: 527s
+- goodnight: 529
+- unknown: 720s
+- idle: 800s
+
+=> Total: 
+
+</div>
+<div>
+
+### Augmentation
+
+- Noise
+- Pitch
+- Shift
+- Splice out
+
+=> x4 More data
+=> Total: 
+
+</div>
+
+---
+
+## Architecture
+
+![architecture center margin](assets/architecture.drawio.png)
+
+---
+
+## Confusion Matrix
+
+![confusion center margin](assets/confusion.png)
+
+---
+
 ## Technical Overview
 
 ![overview center margin](assets/technical_overview.drawio.png)
 
 ---
 
-## Ring Buffer
+## Continuous Audio via Ring Buffer
 
 ![ring center margin](assets/ring_buffer.drawio.png)
+
+---
+
+## Performance
+
+![performance center margin](assets/performance.drawio.png)
+
+---
+
+## Memory Footprint
+
+![memory center margin](assets/memory.drawio.png)
 
 ---
 
@@ -65,3 +125,20 @@ Ture Claussen
    - Integration: Works with MQTT and Home Assistant ✅
    - Reactivity: Time from command to MQTT message in less than one second ✅
    - Robustness: All distances and usual noice scenarios (conversation, TV etc.) ✅
+
+---
+
+## Learnings
+
+- Tensorflow Optmization (QAT etc.) only supports Keras 2 and has very limited architecture support
+- Synthetic data did not add as much value as hoped
+
+---
+
+## Future Work
+
+- Get rid of dynamic memory allocations
+- Optimize Fourier Transformation even more
+- More data augmentation
+- More advanced architectures
+- NAS is promising as hyperparameters are quite random at the moment
