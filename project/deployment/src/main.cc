@@ -21,6 +21,7 @@
 #define DEBUG_MQTT 0
 #define DEBUG_PERFORMANCE 0
 #define DEBUG_AUDIO_PERFORMANCE 0
+#define DEBUG_PERFORMANCE_TRACE 0
 
 static QueueHandle_t audioQueue;
 static QueueHandle_t messageQueue;
@@ -121,6 +122,10 @@ void process(void *pvParameters)
     {
       continue;
     }
+#if DEBUG_PERFORMANCE_TRACE == 1
+    Serial.print("Start: ");
+    Serial.println(millis());
+#endif
 
 #if DEBUG_PERFORMANCE == 1
     unsigned long start = millis();
@@ -131,6 +136,10 @@ void process(void *pvParameters)
 
 #if DEBUG_PERFORMANCE == 1
     unsigned long preprocessing_duration = millis() - start;
+#endif
+#if DEBUG_PERFORMANCE_TRACE == 1
+    Serial.print("Preprocessing: ");
+    Serial.println(millis());
 #endif
 
     int8_t label_pos = infer(mfccMatrix);
@@ -144,6 +153,10 @@ void process(void *pvParameters)
 
 #if DEBUG_PERFORMANCE == 1
     unsigned long classification_duration = millis() - start;
+#endif
+#if DEBUG_PERFORMANCE_TRACE == 1
+    Serial.print("Classification: ");
+    Serial.println(millis());
 #endif
 
     xQueueSend(messageQueue, (void *)&label_pos, portMAX_DELAY);
@@ -190,6 +203,10 @@ void message(void *pvParameters)
     Serial.print("Sent MQTT command: ");
     Serial.println(available_classes[pos]);
 #endif
-    delay(10);
+#if DEBUG_PERFORMANCE_TRACE == 1
+    Serial.print("Full: ");
+    Serial.println(millis());
+#endif
+    delay(1);
   }
 }
