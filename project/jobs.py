@@ -87,17 +87,50 @@ class FeatureExtraction(Job):
         plt.tight_layout()
         plt.show()
 
-    def perturb(self, y: np.ndarray, sr: int) -> np.ndarray:
-        choice = np.random.choice(["noise", "pitch"], p=[
-                                  0.5, 0.5])
-        if choice == "noise":
-            noise_lvl = 0.005 * np.random.randn(len(y))
-            return y + noise_lvl
-        elif choice == "pitch":
-            n_steps = np.random.uniform(-2, 2)
-            return librosa.effects.pitch_shift(y, sr=sr, n_steps=n_steps)
-        else:
+    def noise(self, y: np.ndarray, sr: int) -> np.ndarray:
+        noise_lvl = 0.005 * np.random.randn(len(y))
+        return y + noise_lvl
+
+    def pitch(self, y: np.ndarray, sr: int) -> np.ndarray:
+        n_steps = np.random.uniform(-2, 2)
+        return librosa.effects.pitch_shift(y, sr=sr, n_steps=n_steps)
+
+    def shift(self, y: np.ndarray, sr: int, max_shift_sec: float = 0.2) -> np.ndarray:
+        max_shift = int(max_shift_sec * sr)
+        shift = np.random.randint(-max_shift, max_shift)
+        if shift == 0:
             return y
+
+        mu, sigma = np.mean(y), np.std(y) + 1e-6
+
+        if shift > 0:
+            y_shifted = np.concatenate([
+                y[shift:],
+                np.random.normal(mu, sigma, size=shift)
+            ])
+        else:
+            pad_len = -shift
+            y_shifted = np.concatenate([
+                np.random.normal(mu, sigma, size=pad_len),
+                y[:shift]
+            ])
+        return y_shifted
+
+    def splice_out(self, y: np.ndarray, sr: int,
+                   splice_ms: float = 150.0, n_splices: int = 1) -> np.ndarray:
+        y_spliced = y.copy()
+        splice_len = int(splice_ms / 1000 * sr)
+        mu, sigma = np.mean(y), np.std(y) + 1e-6
+        total_len = len(y)
+
+        for _ in range(n_splices):
+            if splice_len >= total_len:
+                break
+            start = np.random.randint(0, total_len - splice_len)
+            noise_chunk = np.random.normal(mu, sigma, size=splice_len)
+            y_spliced[start:start + splice_len] = noise_chunk
+
+        return y_spliced
 
     def pad(self, yy, target_len=16000):
         if len(yy) >= target_len:
@@ -122,7 +155,7 @@ class FeatureExtraction(Job):
             if not m:
                 continue
             extracted_label = m.group(1)
-            # if extracted_label in {"zenmode"}:
+            # if extracted_label in {"zenmode", "sunblast"}:
             #     continue
             if extracted_label not in labels:
                 labels.append(extracted_label)
@@ -133,11 +166,8 @@ class FeatureExtraction(Job):
             # original
             samples.append((yy, sr, label))
             # augmented
-            if extracted_label not in {"unknown", "idle"}:
-                y_aug = self.perturb(yy, sr)
-                samples.append((y_aug, sr, label))
-                y_aug = self.perturb(yy, sr)
-                samples.append((y_aug, sr, label))
+            for perturbation in [self.noise, self.pitch, self.shift, self.splice_out]:
+                samples.append((perturbation(yy, sr), sr, label))
 
         x, y = [], []
         for yy, sr, label in samples:
@@ -288,8 +318,8 @@ class Training(Job):
 
     def build_model(self, dataset):
         # model = models.get_residual_model((351, 1), len(dataset.labels))
-        # model = models.get_convolutional_model((351, 1), len(dataset.labels))
-        model = models.get_ds_cnn_model((351, 1), len(dataset.labels))
+        model = models.get_convolutional_model((351, 1), len(dataset.labels))
+        # model = models.get_ds_cnn_model((351, 1), len(dataset.labels))
 
         model.compile(
             optimizer='adam',
