@@ -8,7 +8,7 @@
 #include "model.h"
 
 #define DEBUG_CLASSIFICATION 0
-#define CONFIDENCE_THRESHOLD 90
+#define CONFIDENCE_THRESHOLD 50
 
 tflite::AllOpsResolver tflOpsResolver;
 const tflite::Model *tflModel = nullptr;
