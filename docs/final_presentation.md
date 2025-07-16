@@ -12,7 +12,7 @@ theme: rose-pine-dawn
 
 img {
     background-color: transparent !important;
-    max-height: 55vh;
+    max-height: 60vh;
     height: auto;
     width: auto;
     max-width: 100%;
@@ -54,8 +54,8 @@ Ture Claussen
 
 <div>
 
-- **Hardware**: [Arduino Nano ESP32](https://docs.arduino.cc/hardware/nano-esp32/) (dual core, 240Mhz, 512kB SRAM) with external I2S microphone
-- **Preprocessing**: 13 Mel-frequency cepstral coefficients (MFCCs)
+- **Hardware**: [Arduino Nano ESP32](https://docs.arduino.cc/hardware/nano-esp32/) (dual core, 240Mhz, 320kB SRAM) with external I2S microphone
+- **Preprocessing**: 13 Mel-frequency cepstral coefficients (MFCCs) via Edge Impulse SDK
 - **Optimization**: Quantization, Tensorflow Optimization
 
 </div>
@@ -70,14 +70,14 @@ Ture Claussen
 
 ### Raw
 
-- sunblast: 413s
-- zenmode: 416s
-- chillaxo: 527s
-- goodnight: 529
-- unknown: 720s
-- idle: 800s
+- sunblast: 600s
+- chillaxo: 600s
+- goodnight: 600s
+- zenmode: 602s
+- idle: 616s
+- unknown: 912s
 
-=> Total: 
+➡️ Total: 3930s (1.09h)
 
 </div>
 <div>
@@ -89,22 +89,31 @@ Ture Claussen
 - Shift
 - Splice out
 
-=> x4 More data
-=> Total: 
+➡️ x4 More data
+➡️ Total: 15720s (4.37h)
 
 </div>
 
 ---
 
-## Architecture
+## Model Architecture
 
 ![architecture center margin](assets/architecture.drawio.png)
 
 ---
 
+## Model Properties
+
+- Total params: 274,132
+- Trainable params: 91,270
+- Accuracy: 0.8379
+- Quantized accuracy: 0.8354
+
+---
+
 ## Confusion Matrix
 
-![confusion center margin](assets/confusion.png)
+![confusion center margin](assets/confusion_bigger_model.png)
 
 ---
 
@@ -128,7 +137,10 @@ Ture Claussen
 
 ## Memory Footprint
 
-![memory center margin](assets/memory.drawio.png)
+- Total SRAM Allocated: 98kB (33%)
+- Total SRAM Free: 300kB
+- Total PSRAM Allocated: 172kB (2%)
+- Total PSRAM Free: 8,385kB
 
 ---
 
@@ -138,17 +150,17 @@ Ture Claussen
 
 ## Project Result
 
-1. **Phase: MVP (5 points)** ✅
-   - Self-created, small dataset with multiple human voices
-   - Detection of one command spoken clearly, close and without noise
-   - Receive classification result via serial monitor
+1. **Phase: MVP (5 points)**
+   - Self-created, small dataset with multiple human voices ✅
+   - Detection of one command spoken clearly, close and without noise ✅
+   - Receive classification result via serial monitor ✅
 2. **Phase: Extended MVP (10 points)**
-   - Addtion of three more commands (max three syllables)
-   - Extension of dataset with synthetic data (with TTS model)
+   - Addtion of three more commands (max three syllables) ✅
+   - Extension of dataset with synthetic data (with TTS model) ✅
 3. **Phase: Usable Product (15 points)**
    - Integration: Works with MQTT and Home Assistant ✅
    - Reactivity: Time from command to MQTT message in less than one second ✅
-   - Robustness: All distances and usual noice scenarios (conversation, TV etc.) ✅
+   - Robustness: All distances and usual noice scenarios (conversation, TV etc.) ➖
 
 ---
 
@@ -162,7 +174,7 @@ Ture Claussen
 ## Future Work
 
 - Get rid of dynamic memory allocations
-- Optimize Fourier Transformation even more
+- Optimize Fourier Transformation even more (radix 4)
 - More data augmentation
 - More advanced architectures
 - NAS is promising as hyperparameters are quite random at the moment
