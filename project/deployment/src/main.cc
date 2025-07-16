@@ -12,7 +12,7 @@
 #define SAMPLE_RATE 16000
 #define RECORD_SECONDS 1
 #define RECORD_SAMPLES (SAMPLE_RATE * RECORD_SECONDS)
-#define SEGMENT_NUMBER 4
+#define SEGMENT_NUMBER 3
 #define SEGMENT_LENGTH (RECORD_SAMPLES / SEGMENT_NUMBER)
 #define NUM_MFCC_COEFFS 13
 #define CORE_0 0
@@ -197,11 +197,10 @@ void message(void *pvParameters)
     {
       continue;
     }
-#if DEBUG_MQTT == 0
-    mqttSend(available_classes[pos]);
-#else
     Serial.print("Sent MQTT command: ");
     Serial.println(available_classes[pos]);
+#if DEBUG_MQTT == 0
+    mqttSend(available_classes[pos]);
 #endif
 #if DEBUG_PERFORMANCE_TRACE == 1
     Serial.print("Full: ");

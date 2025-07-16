@@ -63,17 +63,17 @@ def get_residual_model(input_shape, num_classes):
 def get_convolutional_model(input_shape, num_classes):
     return Sequential([
         Input(input_shape),
-        Conv1D(16, kernel_size=5, activation='relu'),
+        Conv1D(32, kernel_size=5, activation='relu'),
         BatchNormalization(),
         MaxPooling1D(pool_size=2),
 
-        SeparableConv1D(36, kernel_size=3, activation='relu'),
+        SeparableConv1D(64, kernel_size=3, activation='relu'),
         BatchNormalization(),
         MaxPooling1D(pool_size=2),
 
         Dropout(0.15),
 
-        SeparableConv1D(36, kernel_size=3, activation='relu'),
+        SeparableConv1D(64, kernel_size=3, activation='relu'),
         BatchNormalization(),
         MaxPooling1D(pool_size=2),
 
