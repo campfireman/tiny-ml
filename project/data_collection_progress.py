@@ -9,6 +9,7 @@ TARGET_COUNT = 600
 
 def main():
     labels = defaultdict(int)
+    total = 0
     for file in Path("data/").iterdir():
         if not file.is_file():
             continue
@@ -22,7 +23,9 @@ def main():
     print("=== PROGRESS ===\n")
     for label, count in sorted(list(labels.items()), key=lambda x: x[1]):
         print(f"{label}: {count} ({count / TARGET_COUNT:.0%})")
+        total += count
     print()
+    print(f"Total: {total}")
 
 
 if __name__ == "__main__":
