@@ -40,7 +40,7 @@ def main():
     # clear any old data
     ser.reset_input_buffer()
 
-    count_down(3)
+    count_down(2)
 
     ser.write(b"r")
     ser.flush()
@@ -52,7 +52,8 @@ def main():
 
     if len(data) < TO_READ:
         print(
-            f"Warning: expected {TO_READ} bytes but got {len(data)}", file=sys.stderr)
+            f"Error: expected {TO_READ} bytes but got {len(data)}", file=sys.stderr)
+        sys.exit(1)
 
     # write out the WAV (skip the 44-byte header in data)
     filename = f"recordings/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}-{args.label}.wav"
