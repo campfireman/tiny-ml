@@ -166,8 +166,9 @@ class FeatureExtraction(Job):
             # original
             samples.append((yy, sr, label))
             # augmented
-            for perturbation in [self.noise, self.pitch, self.shift, self.splice_out]:
-                samples.append((perturbation(yy, sr), sr, label))
+            if label not in {"idle", "unknown"}:
+                for perturbation in [self.noise, self.pitch, self.shift, self.splice_out]:
+                    samples.append((perturbation(yy, sr), sr, label))
 
         x, y = [], []
         for yy, sr, label in samples:
@@ -259,9 +260,9 @@ class Training(Job):
         model = self.build_model(dataset)
         model.summary()
         early_stopping_cb = EarlyStopping(
-            # monitor="val_loss",
-            monitor="loss",
-            patience=40,
+            monitor="val_loss",
+            # monitor="loss",
+            patience=30,
             # min_delta=0.01,
             mode='min',
             restore_best_weights=True
