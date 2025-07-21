@@ -9,7 +9,7 @@
 
 #define GAIN 20
 
-void mfcc(int32_t input[RECORD_SAMPLES], float output[27][NUM_MFCC_COEFFS])
+void mfcc(int32_t input[RECORD_SAMPLES], float output[49][NUM_MFCC_COEFFS])
 {
     // 1. Create the signal struct:
     ei::signal_t signal;
@@ -28,7 +28,7 @@ void mfcc(int32_t input[RECORD_SAMPLES], float output[27][NUM_MFCC_COEFFS])
     };
 
     // Construct in one shot:
-    ei::matrix_t mfcc_out(27,
+    ei::matrix_t mfcc_out(49,
                           NUM_MFCC_COEFFS,
                           &output[0][0]);
 
@@ -36,11 +36,11 @@ void mfcc(int32_t input[RECORD_SAMPLES], float output[27][NUM_MFCC_COEFFS])
         &mfcc_out,
         &signal,
         SAMPLE_RATE,                      // 16000
-        float(FRAME_SIZE) / SAMPLE_RATE,  // e.g. 2048/16000 = 0.128 s
-        float(HOP_SIZE) / SAMPLE_RATE,    // e.g. 512/16000  = 0.032 s
+        0.02,                             // e.g. 2048/16000 = 0.128 s
+        0.02,                             // e.g. 512/16000  = 0.032 s
         /*num_cepstral*/ NUM_MFCC_COEFFS, // e.g. 13
-        /*num_filters*/ 40,
-        /*fft_length*/ FRAME_SIZE, // must be ≥ frame_length in samples
+        /*num_filters*/ 32,
+        /*fft_length*/ 256, // must be ≥ frame_length in samples
         /*low_freq*/ 0,
         /*high_freq*/ SAMPLE_RATE / 2,
         /*append_energy*/ true,

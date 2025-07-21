@@ -172,17 +172,17 @@ class FeatureExtraction(Job):
 
         x, y = [], []
         for yy, sr, label in samples:
-            frame_length = 2048 / sr  # 0.128 s
+            frame_length = 256 / sr  # 0.128 s
             frame_stride = 512 / sr  # 0.032 s
 
             mfcc = speechpy.feature.mfcc(
                 yy,
                 sampling_frequency=sr,
-                frame_length=frame_length,
-                frame_stride=frame_stride,
+                frame_length=0.02,
+                frame_stride=0.02,
                 num_cepstral=13,
-                num_filters=40,
-                fft_length=2048,
+                num_filters=32,
+                fft_length=256,
                 low_frequency=0,
                 high_frequency=None,
                 dc_elimination=True
@@ -318,9 +318,10 @@ class Training(Job):
         plt.show()
 
     def build_model(self, dataset):
-        # model = models.get_residual_model((351, 1), len(dataset.labels))
-        model = models.get_convolutional_model((351, 1), len(dataset.labels))
-        # model = models.get_ds_cnn_model((351, 1), len(dataset.labels))
+        # model = models.get_residual_model((637, 1), len(dataset.labels))
+        # model = models.get_convolutional_model((637, 1), len(dataset.labels))
+        model = models.get_simple_model((637, 1), len(dataset.labels))
+        # model = models.get_ds_cnn_model((637, 1), len(dataset.labels))
 
         model.compile(
             optimizer='adam',
@@ -460,7 +461,7 @@ class Optimization(Job):
             q = np.round(x/scale + zp) \
                 .clip(-128, 127) \
                 .astype(np.int8)
-            return q.reshape((1, 351, 1))
+            return q.reshape((1, 637, 1))
         else:
             return np.expand_dims(x.astype(dtype), axis=0)
 

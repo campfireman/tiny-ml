@@ -12,7 +12,7 @@
 #define SAMPLE_RATE 16000
 #define RECORD_SECONDS 1
 #define RECORD_SAMPLES (SAMPLE_RATE * RECORD_SECONDS)
-#define SEGMENT_NUMBER 3
+#define SEGMENT_NUMBER 20
 #define SEGMENT_LENGTH (RECORD_SAMPLES / SEGMENT_NUMBER)
 #define NUM_MFCC_COEFFS 13
 #define CORE_0 0
@@ -31,7 +31,7 @@ void process(void *pvParameters);
 void message(void *pvParameters);
 
 int32_t rawBuf[RECORD_SAMPLES];
-float mfccMatrix[32][NUM_MFCC_COEFFS];
+float mfccMatrix[49][NUM_MFCC_COEFFS];
 
 static AudioBuffer *audio_buf;
 
