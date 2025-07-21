@@ -10,6 +10,7 @@ from tensorflow.keras.layers import (
     Dropout,
     Flatten,
     Input,
+    Reshape,
     MaxPooling1D,
     ReLU,
     SeparableConv1D,
@@ -85,6 +86,20 @@ def get_convolutional_model(input_shape, num_classes):
 
         Dense(num_classes, activation='softmax', name='y_pred')
     ])
+
+
+def get_simple_model(input_shape, num_classes):
+    model = Sequential()
+    model.add(Reshape((int(input_shape[0] / 13), 13), input_shape=input_shape))
+    model.add(Conv1D(16, kernel_size=3, padding='same', activation='relu'))
+    model.add(MaxPooling1D(pool_size=2, strides=2, padding='same'))
+    model.add(Dropout(0.25))
+    model.add(Conv1D(32, kernel_size=3, padding='same', activation='relu'))
+    model.add(MaxPooling1D(pool_size=2, strides=2, padding='same'))
+    model.add(Dropout(0.25))
+    model.add(Flatten())
+    model.add(Dense(num_classes, name='y_pred', activation='softmax'))
+    return model
 
 
 def ds_conv_block(x, filters):
