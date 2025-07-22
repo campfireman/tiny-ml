@@ -8,7 +8,7 @@
 #include "model.h"
 
 #define DEBUG_CLASSIFICATION 0
-#define CONFIDENCE_THRESHOLD 50
+#define CONFIDENCE_THRESHOLD 90
 
 tflite::AllOpsResolver tflOpsResolver;
 const tflite::Model *tflModel = nullptr;
@@ -63,7 +63,7 @@ int8_t infer(float mfccMatrix[32][NUM_MFCC_COEFFS])
 {
     // write to model for inference
     int idx = 0;
-    for (int i = 0; i < 27; i++)
+    for (int i = 0; i < 49; i++)
     {
         for (int j = 0; j < NUM_MFCC_COEFFS; j++)
         {
